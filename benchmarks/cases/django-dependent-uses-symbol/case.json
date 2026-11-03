@@ -1,0 +1,59 @@
+{
+  "description": "Transitive Django; the library that requires it calls strip_tags",
+  "package": "django",
+  "expected": "inconclusive",
+  "vulnerability": {
+    "id": "GHSA-8498-2h75-472j",
+    "aliases": [
+      "BIT-django-2024-53907",
+      "CVE-2024-53907",
+      "PYSEC-2024-156"
+    ],
+    "summary": "Django denial-of-service in django.utils.html.strip_tags()",
+    "details": "An issue was discovered in Django 5.1 before 5.1.4, 5.0 before 5.0.10, and 4.2 before 4.2.17. The strip_tags() method and striptags template filter are subject to a potential denial-of-service attack via certain inputs containing large sequences of nested incomplete HTML entities.",
+    "references": [
+      {
+        "type": "ADVISORY",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-53907"
+      },
+      {
+        "type": "WEB",
+        "url": "https://docs.djangoproject.com/en/dev/releases/security"
+      },
+      {
+        "type": "PACKAGE",
+        "url": "https://github.com/django/django"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/pypa/advisory-database/tree/main/vulns/django/PYSEC-2024-156.yaml"
+      },
+      {
+        "type": "WEB",
+        "url": "https://groups.google.com/g/django-announce"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.debian.org/debian-lts-announce/2024/12/msg00028.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.djangoproject.com/weblog/2024/dec/04/security-releases"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.openwall.com/lists/oss-security/2024/12/04/3"
+      }
+    ]
+  },
+  "llm_response": {
+    "confidence": "high",
+    "symbols": [
+      {
+        "name": "strip_tags",
+        "module": "django.utils.html",
+        "quote": "The strip_tags() method and striptags template filter"
+      }
+    ]
+  }
+}

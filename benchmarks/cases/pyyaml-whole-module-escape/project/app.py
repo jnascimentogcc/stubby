@@ -1,0 +1,3 @@
+import yaml
+
+register(yaml)

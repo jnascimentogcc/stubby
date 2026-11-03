@@ -1,0 +1,71 @@
+{
+  "description": "The vulnerable submodule is passed to other code",
+  "package": "pillow",
+  "expected": "inconclusive",
+  "vulnerability": {
+    "id": "GHSA-8vj2-vxx3-667w",
+    "aliases": [
+      "BIT-pillow-2022-22817",
+      "CVE-2022-22817",
+      "PYSEC-2022-10"
+    ],
+    "summary": "Arbitrary expression injection in Pillow",
+    "details": "`PIL.ImageMath.eval` in Pillow before 9.0.0 allows evaluation of arbitrary expressions, such as ones that use the Python exec method `ImageMath.eval(\"exec(exit())\")`.\n\nWhile Pillow 9.0.0 restricted top-level builtins available to PIL.ImageMath.eval(), it did not prevent builtins available to lambda expressions. These are now also restricted in 9.0.1.",
+    "references": [
+      {
+        "type": "ADVISORY",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-22817"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/python-pillow/Pillow/commit/8531b01d6cdf0b70f256f93092caa2a5d91afc11"
+      },
+      {
+        "type": "ADVISORY",
+        "url": "https://github.com/advisories/GHSA-8vj2-vxx3-667w"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/pypa/advisory-database/tree/main/vulns/pillow/PYSEC-2022-10.yaml"
+      },
+      {
+        "type": "PACKAGE",
+        "url": "https://github.com/python-pillow/Pillow"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.debian.org/debian-lts-announce/2022/01/msg00018.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://lists.debian.org/debian-lts-announce/2024/03/msg00021.html"
+      },
+      {
+        "type": "WEB",
+        "url": "https://pillow.readthedocs.io/en/stable/releasenotes/9.0.0.html#restrict-builtins-available-to-imagemath-eval"
+      },
+      {
+        "type": "WEB",
+        "url": "https://pillow.readthedocs.io/en/stable/releasenotes/9.0.1.html#security"
+      },
+      {
+        "type": "WEB",
+        "url": "https://security.gentoo.org/glsa/202211-10"
+      },
+      {
+        "type": "WEB",
+        "url": "https://www.debian.org/security/2022/dsa-5053"
+      }
+    ]
+  },
+  "llm_response": {
+    "confidence": "high",
+    "symbols": [
+      {
+        "name": "ImageMath.eval",
+        "module": "PIL.ImageMath",
+        "quote": "`PIL.ImageMath.eval` in Pillow before 9.0.0 allows evaluation of arbitrary expressions"
+      }
+    ]
+  }
+}

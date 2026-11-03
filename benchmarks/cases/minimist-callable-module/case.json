@@ -1,0 +1,86 @@
+{
+  "description": "Advisory names an internal function; the project calls the module itself",
+  "package": "minimist",
+  "expected": "affected",
+  "known_gap": "the advisory names an internal function (setKey), so the tool can only say inconclusive",
+  "vulnerability": {
+    "id": "GHSA-xvch-5gv4-984h",
+    "aliases": [
+      "CVE-2021-44906"
+    ],
+    "summary": "Prototype Pollution in minimist",
+    "details": "Minimist prior to 1.2.6 and 0.2.4 is vulnerable to Prototype Pollution via file `index.js`, function `setKey()` (lines 69-95).",
+    "references": [
+      {
+        "type": "ADVISORY",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-44906"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/minimistjs/minimist/issues/11"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/substack/minimist/issues/164"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/minimistjs/minimist/pull/24"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/minimistjs/minimist/commit/34e20b8461118608703d6485326abbb8e35e1703"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/minimistjs/minimist/commit/bc8ecee43875261f4f17eb20b1243d3ed15e70eb"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/minimistjs/minimist/commit/c2b981977fa834b223b408cfb860f933c9811e4d"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/minimistjs/minimist/commit/ef9153fc52b6cea0744b2239921c5dcae4697f11"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/Marynk/JavaScript-vulnerability-detection/blob/main/minimist%20PoC.zip"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/minimistjs/minimist/commits/v0.2.4"
+      },
+      {
+        "type": "PACKAGE",
+        "url": "https://github.com/substack/minimist"
+      },
+      {
+        "type": "WEB",
+        "url": "https://github.com/substack/minimist/blob/master/index.js#L69"
+      },
+      {
+        "type": "WEB",
+        "url": "https://security.netapp.com/advisory/ntap-20240621-0006"
+      },
+      {
+        "type": "WEB",
+        "url": "https://snyk.io/vuln/SNYK-JS-MINIMIST-559764"
+      },
+      {
+        "type": "WEB",
+        "url": "https://stackoverflow.com/questions/8588563/adding-custom-properties-to-a-function/20278068#20278068"
+      }
+    ]
+  },
+  "llm_response": {
+    "confidence": "high",
+    "symbols": [
+      {
+        "name": "setKey",
+        "module": "",
+        "quote": "function `setKey()`"
+      }
+    ]
+  }
+}
