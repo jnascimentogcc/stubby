@@ -14,7 +14,7 @@ document you can review, version and share.
 ## Quick start
 
 ```bash
-pip install -e .
+pip install stubby-vex
 
 stubby scan path/to/js-project -o vex.json
 ```
