@@ -27,10 +27,11 @@ details{margin-top:6px}summary{cursor:pointer;color:var(--mut);font-size:13px}
 </style></head><body><main>
 <h1>Stubby – VEX report</h1><div class="sub" id="meta"></div>
 <div class="cards" id="cards"></div>
-<div class="bar"><input id="q" type="search" placeholder="Filter by package, CVE or text..."><select id="r" title="Why it is inconclusive"></select></div>
+<div class="bar"><input id="q" type="search" placeholder="Filter by package, CVE or text..."><select id="sc" title="Scope"><option value="">Runtime and development</option><option value="runtime">Runtime only</option><option value="dev">Development only</option></select><select id="r" title="Why it is inconclusive"></select></div>
 <div id="list"></div>
 </main><script>
-let DATA=__DATA__, REASONS=__REASONS__, filter=null, query="", reason="";
+let DATA=__DATA__, REASONS=__REASONS__, filter=null, query="", reason="", scope="";
+const isDev=s=>s["x-stubby-scope"]==="development"||/only required by devDependencies/.test(s.status_notes||"");
 const L={affected:["Affected","aff"],under_investigation:["Inconclusive","ina"],not_affected:["Not affected","not"]};
 const dec=s=>{try{return decodeURIComponent(s)}catch(e){return s}};
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -41,7 +42,8 @@ function link(id){
 }
 function render(){
   const st=DATA.statements||[], c={};st.forEach(s=>c[s.status]=(c[s.status]||0)+1);
-  document.getElementById("meta").textContent=`${st[0]?.products?.[0]?.["@id"]||""} · ${DATA.timestamp} · ${DATA.role}`;
+  const nd=st.filter(isDev).length;
+  document.getElementById("meta").textContent=`${st[0]?.products?.[0]?.["@id"]||""} · ${DATA.timestamp} · ${DATA.role}`+(nd?` · ${nd} of ${st.length} findings only affect development dependencies`:"");
   document.getElementById("cards").innerHTML=Object.entries(L).map(([k,[n,cl]])=>`<div class="card ${cl} ${filter===k?"on":""}" data-k="${k}"><b>${c[k]||0}</b>${n}</div>`).join("");
   document.querySelectorAll(".card").forEach(e=>e.onclick=()=>{filter=filter===e.dataset.k?null:e.dataset.k;render()});
   const rc={};st.forEach(s=>(s["x-stubby-reasons"]||[]).forEach(r=>rc[r]=(rc[r]||0)+1));
@@ -50,15 +52,16 @@ function render(){
   sel.innerHTML=`<option value="">All reasons</option>`+keys.map(k=>`<option value="${esc(k)}" ${k===reason?"selected":""}>${esc(REASONS[k]||k)} (${rc[k]})</option>`).join("");
   const rows=st.filter(s=>!filter||s.status===filter)
     .filter(s=>!reason||(s["x-stubby-reasons"]||[]).includes(reason))
+    .filter(s=>!scope||(scope==="dev")===isDev(s))
     .filter(s=>!query||JSON.stringify(s).toLowerCase().includes(query))
-    .sort((a,b)=>(a.status==="under_investigation")-(b.status==="under_investigation"));
+    .sort((a,b)=>(a.status==="under_investigation")-(b.status==="under_investigation")||isDev(a)-isDev(b));
   document.getElementById("list").innerHTML=rows.map(s=>{
     const sub=(s.products||[]).flatMap(p=>(p.subcomponents||[]).map(x=>x["@id"]));
     const v=s.vulnerability||{}, ids=[v.name,...(v.aliases||[])].filter(Boolean);
     const desc=v.description||"";
     const explicit=safe(v["@id"]);
     const first=explicit&&ids.length?`<a href="${esc(explicit)}" target="_blank" rel="noopener noreferrer">${esc(ids[0])}</a>`:link(ids[0]||"");
-    return `<div class="row"><div class="top"><span class="badge ${s.status}">${(L[s.status]||[s.status])[0]}</span>
+    return `<div class="row"><div class="top"><span class="badge ${s.status}">${(L[s.status]||[s.status])[0]}</span>${isDev(s)?`<span class="chip" title="Not part of the shipped runtime">dev</span>`:""}
       <span class="pkg">${esc(dec(sub.join(", ")).replace(/^pkg:[a-z]+\//,"").replace(/, pkg:[a-z]+\//g,", "))}</span>
       ${first}<span class="mut">${ids.slice(1).map(link).join(", ")}</span></div>
       ${desc?`<div class="title">${esc(desc)}</div>`:""}
@@ -66,6 +69,7 @@ function render(){
       ${(s["x-stubby-reasons"]||[]).length?`<div class="chips">${s["x-stubby-reasons"].map(r=>`<span class="chip">${esc(REASONS[r]||r)}</span>`).join("")}</div>`:""}
       ${s.justification?`<div class="just mut">Justification: <code>${esc(s.justification)}</code></div>`:""}</div>`}).join("")||"<p class=mut>No findings.</p>";
 }
+document.getElementById("sc").onchange=e=>{scope=e.target.value;render()};
 document.getElementById("r").onchange=e=>{reason=e.target.value;render()};
 document.getElementById("q").oninput=e=>{query=e.target.value.toLowerCase();render()};
 render();

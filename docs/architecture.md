@@ -125,7 +125,9 @@ listed with their meaning in `scan.REASONS`), for example `symbol-unknown`,
 `whole-module-use`, `dynamic-code`, `dependent-not-installed` or
 `dependent-uses-symbol`. They are written to each VEX statement as the extension
 field `x-stubby-reasons`, and `stubby report` shows them as labels with a filter.
-`dev-only` is informational.
+Findings reachable only through development dependencies are flagged with the
+extension field `x-stubby-scope: development` and keep their verdict: a
+vulnerable build tool can still matter, but it is not part of the shipped runtime.
 
 ## Evidence
 

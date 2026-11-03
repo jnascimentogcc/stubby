@@ -230,7 +230,6 @@ REASONS = {
     "dependent-uses-symbol": "A dependent package uses a vulnerable symbol (needs call-graph analysis)",
     "dependent-whole-module": "A dependent package uses the whole module",
     "dependent-dynamic": "A dependent package loads modules dynamically",
-    "dev-only": "Only required by development dependencies (informational)",
 }
 
 
@@ -281,8 +280,10 @@ def _assess(
         notes = "direct dependency never imported in source (candidate for not_affected; needs review)"
         reasons.append("not-imported")
     if dev_only:
-        reasons.append("dev-only")
         notes += "; only required by devDependencies (not part of the shipped runtime)"
+
+    if not dep.direct and not dependents and not llm_error and (symbols is None or not symbols.usable):
+        reasons.append("symbol-unknown")  # nothing to look for in the packages that require it
 
     verdict = Verdict.INCONCLUSIVE
     shown = evidence
@@ -307,7 +308,9 @@ def _assess(
             f"; {len(dynamic)} dynamic or unresolved import/eval site(s) in the project "
             "could reach it, so absence of usage is not conclusive"
         )
-    return Finding(dep, vuln, verdict, notes, shown, reasons if verdict is Verdict.INCONCLUSIVE else [])
+    return Finding(
+        dep, vuln, verdict, notes, shown, reasons if verdict is Verdict.INCONCLUSIVE else [], dev_only
+    )
 
 
 def _decide(

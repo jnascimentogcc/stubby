@@ -69,6 +69,8 @@ def _statement(finding: Finding, product_purl: str, now: datetime) -> dict:
         stmt["impact_statement"] = finding.notes
     if finding.notes and finding.verdict is not Verdict.NOT_AFFECTED:
         stmt["status_notes"] = finding.notes
+    if finding.dev_only:
+        stmt["x-stubby-scope"] = "development"  # extension field: not part of the shipped runtime
     if finding.reasons:
         stmt["x-stubby-reasons"] = list(finding.reasons)  # extension field: why it stayed inconclusive
     return stmt

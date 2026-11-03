@@ -105,3 +105,14 @@ def test_help_documents_every_option(capsys):
         assert "exit status" in text
     for flag in ("--llm", "--repository", "--site-packages", "--cache-dir", "--no-fix-diff", "--quiet"):
         assert flag in parser._subparsers._group_actions[0].choices["scan"].format_help()
+
+
+def test_report_marks_development_only_findings(tmp_path):
+    vex = {"statements": [
+        {"vulnerability": {"name": "CVE-1"}, "products": [{"@id": "p", "subcomponents": [{"@id": "pkg:npm/a@1"}]}],
+         "status": "under_investigation", "x-stubby-scope": "development"}]}
+    src = tmp_path / "v.json"
+    src.write_text(json.dumps(vex))
+    assert cli.main(["report", str(src)]) == 0
+    html = (tmp_path / "v.html").read_text(encoding="utf-8")
+    assert 'id="sc"' in html and "development dependencies" in html

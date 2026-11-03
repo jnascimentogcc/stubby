@@ -76,7 +76,8 @@ def test_author_is_configurable(author):
 
 
 def test_inconclusive_statement_lists_reason_codes():
-    finding = Finding(DEP, VULN, Verdict.INCONCLUSIVE, "n", reasons=["symbol-unknown", "dev-only"])
+    finding = Finding(DEP, VULN, Verdict.INCONCLUSIVE, "n", reasons=["symbol-unknown"], dev_only=True)
     stmt = build_vex(ScanResult("app", "1.0.0", "npm", [finding]), now=NOW)["statements"][0]
-    assert stmt["x-stubby-reasons"] == ["symbol-unknown", "dev-only"]
+    assert stmt["x-stubby-reasons"] == ["symbol-unknown"]
+    assert stmt["x-stubby-scope"] == "development"
     assert "x-stubby-reasons" not in statement_for(Verdict.AFFECTED)

@@ -157,11 +157,18 @@ def test_reasons_explain_each_inconclusive_verdict():
     assert _assess(DEP, VULN, imported).reasons == ["symbol-unknown"]
     assert _assess(DEP, VULN, imported, llm_error="boom").reasons == ["llm-error"]
     assert _assess(DEP, VULN, []).reasons == ["not-imported"]
-    assert _assess(transitive, VULN, [], dev_only=True).reasons == ["transitive-unanalysed", "dev-only"]
+    assert _assess(transitive, VULN, [], dev_only=True).reasons == ["transitive-unanalysed", "symbol-unknown"]
     assert _assess(DEP, VULN, imported, [], symbols(confidence="medium")).reasons == ["low-confidence"]
     assert _assess(DEP, VULN, [ev("import", "template")], [], symbols()).reasons == ["imported-unused"]
     assert _assess(DEP, VULN, [ev("import", "*"), ev("call", "*", 2)], [], symbols()).reasons == ["whole-module-use"]
     assert _assess(DEP, VULN, imported, [ev("dynamic", None)], symbols()).reasons == ["dynamic-code"]
+
+
+def test_dev_only_findings_are_flagged_without_changing_the_verdict():
+    transitive = Dependency("npm", "lodash", "4.17.15", direct=False)
+    flagged = _assess(transitive, VULN, [], dev_only=True)
+    assert flagged.dev_only and flagged.verdict is Verdict.INCONCLUSIVE
+    assert not _assess(transitive, VULN, []).dev_only
 
 
 def test_conclusive_verdicts_have_no_reasons():

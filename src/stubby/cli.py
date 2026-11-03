@@ -276,7 +276,9 @@ def main(argv: list[str] | None = None) -> int:
             )
         for warning in result.warnings:
             print(f"warning: {warning}", file=sys.stderr)
-        print(f"\n{len(result.findings)} finding(s).", file=sys.stderr)
+        dev = sum(1 for f in result.findings if f.dev_only)
+        suffix = f", {dev} only in development dependencies." if dev else "."
+        print(f"\n{len(result.findings)} finding(s){suffix}", file=sys.stderr)
 
         vex = build_vex(result, author=args.author)
         if args.output:
