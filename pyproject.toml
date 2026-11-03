@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "stubby-vex"
-version = "0.7.0"
+version = "0.8.0"
 description = "Reachability analysis for vulnerable dependencies, with OpenVEX output."
 readme = "README.md"
 requires-python = ">=3.10"
