@@ -31,6 +31,8 @@ class PyProject:
     name: str | None = None
     version: str | None = None
     direct: set[str] | None = None  # normalised names; None when pyproject.toml says nothing
+    pinned: dict[str, str] = field(default_factory=dict)  # name -> version of `==` pins (PEP 621)
+    dev: set[str] = field(default_factory=set)  # pinned names only in optional groups
 
 
 def read_pyproject(project_dir: Path) -> PyProject:
@@ -46,17 +48,30 @@ def read_pyproject(project_dir: Path) -> PyProject:
     project = data.get("project", {})
     poetry = data.get("tool", {}).get("poetry", {})
 
-    def add_specs(specs) -> None:
+    pinned: dict[str, str] = {}
+    dev: set[str] = set()
+
+    def add_specs(specs, is_dev: bool = False) -> None:
         for spec in specs or []:
             match = _NAME.match(str(spec))
             if match:
-                direct.add(normalize(match.group(1)))
+                name = normalize(match.group(1))
+                direct.add(name)
+                pin = _PINNED.match(str(spec))
+                if pin:
+                    pinned.setdefault(name, pin.group(2))
+                    if is_dev and name not in pinned_runtime:
+                        dev.add(name)
+                    elif not is_dev:
+                        pinned_runtime.add(name)
+                        dev.discard(name)
 
+    pinned_runtime: set[str] = set()
     add_specs(project.get("dependencies"))
     for extra in (project.get("optional-dependencies") or {}).values():
-        add_specs(extra)
+        add_specs(extra, True)
     for group in (data.get("dependency-groups") or {}).values():
-        add_specs([g for g in group if isinstance(g, str)])
+        add_specs([g for g in group if isinstance(g, str)], True)
     tables = [poetry.get("dependencies"), poetry.get("dev-dependencies")]
     tables += [g.get("dependencies") for g in (poetry.get("group") or {}).values()]
     for table in tables:
@@ -68,6 +83,8 @@ def read_pyproject(project_dir: Path) -> PyProject:
         name=project.get("name") or poetry.get("name"),
         version=project.get("version") or poetry.get("version"),
         direct=direct or None,
+        pinned=pinned,
+        dev=dev,
     )
 
 

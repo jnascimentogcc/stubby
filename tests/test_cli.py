@@ -17,7 +17,7 @@ def fake_result() -> ScanResult:
 
 
 def test_scan_prints_findings_and_writes_vex(monkeypatch, tmp_path, capsys):
-    monkeypatch.setattr(cli, "scan_project", lambda path, extractor=None, site_packages=None, repository=None: fake_result())
+    monkeypatch.setattr(cli, "scan_project", lambda path, extractor=None, site_packages=None, repository=None, progress=None: fake_result())
     out = tmp_path / "vex.json"
 
     assert cli.main(["scan", str(tmp_path), "-o", str(out), "--author", "me"]) == 0
@@ -30,14 +30,14 @@ def test_scan_prints_findings_and_writes_vex(monkeypatch, tmp_path, capsys):
 
 
 def test_scan_without_output_does_not_write_file(monkeypatch, tmp_path):
-    monkeypatch.setattr(cli, "scan_project", lambda path, extractor=None, site_packages=None, repository=None: fake_result())
+    monkeypatch.setattr(cli, "scan_project", lambda path, extractor=None, site_packages=None, repository=None, progress=None: fake_result())
     monkeypatch.chdir(tmp_path)
     assert cli.main(["scan"]) == 0
     assert list(tmp_path.iterdir()) == []
 
 
 def test_unsupported_project_exits_with_2(monkeypatch, capsys):
-    def boom(path, extractor=None, site_packages=None, repository=None):
+    def boom(path, extractor=None, site_packages=None, repository=None, progress=None):
         raise ValueError("No supported project found")
 
     monkeypatch.setattr(cli, "scan_project", boom)
@@ -46,9 +46,20 @@ def test_unsupported_project_exits_with_2(monkeypatch, capsys):
 
 
 def test_osv_network_failure_exits_with_3(monkeypatch, capsys):
-    def boom(path, extractor=None, site_packages=None, repository=None):
+    def boom(path, extractor=None, site_packages=None, repository=None, progress=None):
         raise httpx.ConnectError("offline")
 
     monkeypatch.setattr(cli, "scan_project", boom)
     assert cli.main(["scan", "."]) == 3
     assert "could not reach OSV.dev" in capsys.readouterr().err
+
+
+def test_progress_reports_stages_and_can_be_silenced(capsys):
+    from stubby.cli import _progress
+
+    assert _progress(True) is None
+    report = _progress(False)
+    report("Querying OSV.dev", False)
+    report("[1/2] pkg@1 CVE-1", True)  # per-item updates are only shown on a terminal
+    err = capsys.readouterr().err
+    assert "... Querying OSV.dev" in err

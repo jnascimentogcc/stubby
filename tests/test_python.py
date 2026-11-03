@@ -261,7 +261,7 @@ def test_cli_prints_scan_warnings(monkeypatch, tmp_path, capsys):
     from stubby.scan import ScanResult
 
     monkeypatch.setattr(
-        cli, "scan_project", lambda path, extractor=None, site_packages=None, repository=None: ScanResult("a", "1", "PyPI", [], ["be careful"])
+        cli, "scan_project", lambda path, extractor=None, site_packages=None, repository=None, progress=None: ScanResult("a", "1", "PyPI", [], ["be careful"])
     )
     assert cli.main(["scan", str(tmp_path)]) == 0
     assert "warning: be careful" in capsys.readouterr().err
@@ -270,3 +270,21 @@ def test_cli_prints_scan_warnings(monkeypatch, tmp_path, capsys):
 @pytest.mark.parametrize("case_id", ["pyyaml-full-load", "django-strip-tags"])
 def test_benchmark_python_cases_have_an_installed_environment(case_id):
     assert find_site_packages(CASES / case_id / "project") is not None
+
+
+def test_pinned_pyproject_is_a_dependency_source_and_missing_installs_are_warned(tmp_path):
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "x"\nversion = "1"\ndependencies = ["pypdf==6.19.0", "httpx>=0.2"]\n'
+        '[project.optional-dependencies]\ndev = ["pytest==9.1.1"]\n'
+    )
+    (tmp_path / "app").mkdir()
+    (tmp_path / "app" / "a.py").write_text("import pypdf\n")
+    (tmp_path / ".venv" / "Lib" / "site-packages").mkdir(parents=True)
+    adapter = PythonAdapter()
+    assert adapter.detect(tmp_path)
+    _, _, deps = adapter.load_dependencies(tmp_path)
+    assert {(d.name, d.version, d.direct) for d in deps} == {("pypdf", "6.19.0", True), ("pytest", "9.1.1", True)}
+    warnings = adapter.warnings(tmp_path)
+    assert any("pins in pyproject.toml" in w for w in warnings)
+    adapter.analyze(tmp_path)
+    assert any("not installed" in w for w in adapter.warnings(tmp_path))

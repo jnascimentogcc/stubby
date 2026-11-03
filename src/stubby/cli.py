@@ -49,6 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="site-packages of the Python environment to inspect "
         "(default: .venv, venv or env inside the project)",
     )
+    scan.add_argument("-q", "--quiet", action="store_true", help="do not print progress to stderr")
     scan.add_argument(
         "--no-fix-diff", action="store_true", help="do not fetch fix-commit diffs from GitHub"
     )
@@ -103,6 +104,27 @@ def _build_extractor(args: argparse.Namespace) -> SymbolExtractor | None:
     return SymbolExtractor(provider, use_fix_diff=not args.no_fix_diff, cache_dir=args.cache_dir)
 
 
+def _progress(quiet: bool):
+    """Progress on stderr: stages as lines, per-item updates rewrite one line on a terminal."""
+    if quiet:
+        return None
+    tty = sys.stderr.isatty()
+    state = {"transient": False}
+
+    def report(message: str, transient: bool = False) -> None:
+        if transient:
+            if tty:
+                print(f"\r\x1b[K  {message[:100]}", end="", file=sys.stderr, flush=True)
+                state["transient"] = True
+            return
+        if state["transient"]:
+            print("\r\x1b[K", end="", file=sys.stderr)
+            state["transient"] = False
+        print(f"... {message}", file=sys.stderr, flush=True)
+
+    return report
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
@@ -120,7 +142,8 @@ def main(argv: list[str] | None = None) -> int:
         try:
             extractor = _build_extractor(args)
             result = scan_project(
-                args.path, extractor=extractor, site_packages=args.site_packages, repository=args.repository
+                args.path, extractor=extractor, site_packages=args.site_packages, repository=args.repository,
+                progress=_progress(args.quiet),
             )
         except LLMError as exc:
             print(f"error: {exc}", file=sys.stderr)

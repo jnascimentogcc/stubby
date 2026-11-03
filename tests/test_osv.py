@@ -59,3 +59,42 @@ def test_vulnerability_details_are_cached():
 
     assert len(detail_calls) == 1
     assert result[LODASH][0].display_id == "CVE-1"
+
+
+def test_transient_errors_are_retried_then_succeed():
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        if len(calls) < 3:
+            return httpx.Response(503)
+        return httpx.Response(200, json={"id": "GHSA-1"})
+
+    client = OSVClient(client=httpx.Client(transport=httpx.MockTransport(handler)), backoff=0)
+    assert client.get_vulnerability("GHSA-1").id == "GHSA-1"
+    assert len(calls) == 3
+
+
+def test_persistent_server_error_is_raised_after_retries():
+    import pytest
+
+    client = OSVClient(
+        client=httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(503))), retries=2, backoff=0
+    )
+    with pytest.raises(httpx.HTTPError):
+        client.get_vulnerability("GHSA-1")
+
+
+def test_client_errors_are_not_retried():
+    import pytest
+
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        return httpx.Response(404)
+
+    client = OSVClient(client=httpx.Client(transport=httpx.MockTransport(handler)), backoff=0)
+    with pytest.raises(httpx.HTTPError):
+        client.get_vulnerability("GHSA-1")
+    assert len(calls) == 1

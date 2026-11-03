@@ -75,14 +75,28 @@ class PythonAdapter:
         return PythonAdapter(site_packages) if site_packages else self
 
     def detect(self, project_dir: Path) -> bool:
-        return (project_dir / "poetry.lock").is_file() or (project_dir / "requirements.txt").is_file()
+        return (
+            (project_dir / "poetry.lock").is_file()
+            or (project_dir / "requirements.txt").is_file()
+            or bool(read_pyproject(project_dir).pinned)
+        )
 
     # -- lockfiles ---------------------------------------------------------
 
     def _state(self, project_dir: Path) -> _State:
         key = project_dir.resolve()
         if key not in self._cache:
-            self._cache[key] = self._build_state(key)
+            state = self._build_state(key)
+            if state.env is not None:
+                missing = [d.name for d in state.deps if d.name not in state.env.dists]
+                if missing:
+                    state.warnings.append(
+                        f"{len(missing)} of {len(state.deps)} dependencies are not installed in "
+                        f"{state.env.site_packages} (e.g. {', '.join(missing[:3])}): their modules "
+                        "cannot be mapped, so imports stay unresolved and nothing is ruled out; "
+                        "install the project's dependencies into that environment and scan again"
+                    )
+            self._cache[key] = state
         return self._cache[key]
 
     def _build_state(self, project_dir: Path) -> _State:
@@ -105,6 +119,9 @@ class PythonAdapter:
             deps, graph = parse_poetry_lock(lock, pyproject.direct)
             return _State(name, version, deps, graph, env, warnings)
 
+        if not (project_dir / "requirements.txt").is_file():
+            return self._pyproject_state(name, version, pyproject, env, warnings)
+
         reqs = parse_requirements(project_dir / "requirements.txt")
         warnings += reqs.warnings
         deps_by_key: dict[tuple[str, str], Dependency] = {}
@@ -124,6 +141,46 @@ class PythonAdapter:
                 graph.edges[dep_name] = sorted(
                     {r for r in (dist.requires if dist else []) if r in graph.nodes and r != dep_name}
                 )
+            graph.root = sorted(d.name for d in deps if d.direct)
+        return _State(name, version, deps, graph, env, warnings)
+
+    def _pyproject_state(self, name, version, pyproject, env, warnings) -> _State:
+        """Pinned ``pyproject.toml`` dependencies; transitive ones come from the installed environment."""
+        warnings.append(
+            "no lockfile: dependencies are the `==` pins in pyproject.toml"
+            + ("" if env else " (without an installed environment transitive dependencies are unknown)")
+        )
+        versions = dict(pyproject.pinned)
+        if env is not None:
+            queue = list(versions)
+            while queue:
+                current = queue.pop()
+                dist = env.dists.get(current)
+                for req in dist.requires if dist else []:
+                    if req not in versions and req in env.dists:
+                        versions[req] = env.dists[req].version
+                        queue.append(req)
+        deps = [
+            Dependency(ECOSYSTEM, n, v, direct=n in pyproject.pinned) for n, v in sorted(versions.items())
+        ]
+        graph = None
+        if env is not None:
+            edges = {
+                d.name: sorted(
+                    {r for r in (env.dists[d.name].requires if d.name in env.dists else []) if r in versions and r != d.name}
+                )
+                for d in deps
+            }
+            shipped, queue = set(), [n for n in pyproject.pinned if n not in pyproject.dev]
+            while queue:
+                current = queue.pop()
+                if current not in shipped:
+                    shipped.add(current)
+                    queue += edges.get(current, [])
+            graph = DependencyGraph()
+            for dep in deps:
+                graph.nodes[dep.name] = GraphNode(dep.name, dep.name, dep.version, dev=dep.name not in shipped)
+            graph.edges = edges
             graph.root = sorted(d.name for d in deps if d.direct)
         return _State(name, version, deps, graph, env, warnings)
 

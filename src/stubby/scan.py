@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -51,7 +52,10 @@ def scan_project(
     extractor: SymbolExtractor | None = None,
     site_packages: Path | None = None,
     repository: Path | None = None,
+    progress: Callable[[str, bool], None] | None = None,
 ) -> ScanResult:
+    """``progress(message, transient)`` reports what is running; transient messages are per-item."""
+    note = progress or (lambda message, transient=False: None)
     project_dir = project_dir.resolve()
     adapter = next((a for a in ADAPTERS if a.detect(project_dir)), None)
     if adapter is None:
@@ -63,13 +67,16 @@ def scan_project(
     if hasattr(adapter, "configured"):
         adapter = adapter.configured(site_packages=site_packages, repository=repository)
 
+    note(f"Reading {adapter.ecosystem} dependencies", False)
     name, version, deps = adapter.load_dependencies(project_dir)
+    note(f"Analysing source code ({len(deps)} dependencies)", False)
     usage = adapter.analyze(project_dir)
     graph = adapter.dependency_graph(project_dir)
     package_reports: dict[str, object] = {}  # install location -> UsageReport, analysed once
 
     owns_client = osv is None
     osv = osv or OSVClient()
+    note("Querying OSV.dev for known vulnerabilities", False)
     try:
         vulns_by_dep = osv.vulnerabilities_for(deps)
     finally:
@@ -77,11 +84,14 @@ def scan_project(
             osv.close()
 
     findings: list[Finding] = []
+    total = sum(len(v) for v in vulns_by_dep.values())
+    note(f"Assessing {total} finding(s)" + (" (asking the LLM for vulnerable symbols)" if extractor else ""), False)
     for dep, vulns in vulns_by_dep.items():
         evidence = usage.by_package.get(dep.name, [])
         instances = graph.instances(dep.name, dep.version) if graph else []
         chain = _chain(graph, instances) if not dep.direct else []
         for vuln in vulns:
+            note(f"[{len(findings) + 1}/{total}] {dep.name}@{dep.version} {vuln.display_id}", True)
             symbols, error, dependents = None, None, None
             # The LLM is only consulted where it can change the outcome: a package
             # the project imports, or one that installed dependents may use.
@@ -112,6 +122,7 @@ def scan_project(
                     dev_only=bool(instances) and all(n.dev for n in instances),
                 )
             )
+    note("Assessment complete", False)
     findings.sort(key=lambda f: (f.dependency.name, f.vulnerability.id))
     return ScanResult(name, version, adapter.ecosystem, findings, adapter.warnings(project_dir))
 
