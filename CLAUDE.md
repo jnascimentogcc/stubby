@@ -14,6 +14,7 @@ pytest                                  # all tests (testpaths = tests)
 pytest tests/test_pipeline.py::test_vex_document_shape   # single test
 stubby scan path/to/js-project -o vex.json             # needs network (api.osv.dev)
 stubby bench                            # benchmark (offline); exit 1 on a false not_affected
+stubby report vex.json                  # standalone HTML report from a VEX file (report.py)
 stubby scan . --site-packages .venv/lib/python3.12/site-packages   # Python: inspect this environment
 stubby scan . --repository ~/.m2/repository                        # Java: where the dependency jars live
 ```

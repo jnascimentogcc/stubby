@@ -153,7 +153,8 @@ src/stubby/
   fixes.py           fix-commit diff fetching
   bench.py           benchmark runner and metrics
   scan.py            orchestration
-  vex.py             OpenVEX writer
+  vex.py             OpenVEX writer (statements carry the advisory @id link and title)
+  report.py          standalone HTML report rendered from a VEX document
   cli.py             command line
 ```
 

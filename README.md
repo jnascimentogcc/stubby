@@ -17,6 +17,7 @@ document you can review, version and share.
 pip install stubby-vex
 
 stubby scan path/to/js-project -o vex.json
+stubby report vex.json            # optional: a standalone HTML page, with links to each advisory
 ```
 
 Requires network access to `api.osv.dev`. Install your dependencies first (`npm install`, a `.venv` for Python, or `mvn dependency:tree` and `mvn dependency:resolve` for Java) so Stubby can also inspect the packages that depend on a vulnerable one. To also identify which function of

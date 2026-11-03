@@ -5,3 +5,7 @@ __pycache__/
 /dist/
 /build/
 .venv/
+
+# scan output
+*-vex.json
+*-relatorio.html

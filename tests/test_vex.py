@@ -39,11 +39,28 @@ def test_inconclusive_maps_to_under_investigation():
 
 def test_aliases_exclude_display_id_and_are_omitted_when_empty():
     stmt = statement_for(Verdict.INCONCLUSIVE)
-    assert stmt["vulnerability"] == {"name": "CVE-2020-8203", "aliases": ["GHSA-1"]}
+    assert stmt["vulnerability"] == {
+        "name": "CVE-2020-8203",
+        "aliases": ["GHSA-1"],
+        "@id": "https://nvd.nist.gov/vuln/detail/CVE-2020-8203",
+    }
 
     bare = Finding(DEP, Vulnerability(id="GHSA-2"))
     doc = build_vex(ScanResult("app", "1.0.0", "npm", [bare]), now=NOW)
-    assert doc["statements"][0]["vulnerability"] == {"name": "GHSA-2"}
+    assert doc["statements"][0]["vulnerability"] == {
+        "name": "GHSA-2",
+        "@id": "https://github.com/advisories/GHSA-2",
+    }
+
+
+def test_vulnerability_carries_the_advisory_title_and_a_bounded_description():
+    titled = Finding(DEP, Vulnerability(id="GHSA-3", summary="Prototype pollution in lodash"))
+    long = Finding(DEP, Vulnerability(id="PYSEC-1", details="word " * 200))
+    doc = build_vex(ScanResult("app", "1.0.0", "npm", [titled, long]), now=NOW)
+    assert doc["statements"][0]["vulnerability"]["description"] == "Prototype pollution in lodash"
+    second = doc["statements"][1]["vulnerability"]
+    assert second["@id"] == "https://osv.dev/vulnerability/PYSEC-1"
+    assert len(second["description"]) <= 400 and second["description"].endswith("...")
 
 
 def test_product_purl_encodes_scoped_project_name():

@@ -13,6 +13,7 @@ from . import __version__
 from .bench import compute_metrics, format_report, load_cases, run_cases
 from .llm.base import LLMError
 from .llm.openai import OpenAIProvider
+from .report import render_report
 from .scan import scan_project
 from .symbols import SymbolExtractor
 from .vex import build_vex
@@ -59,6 +60,10 @@ def build_parser() -> argparse.ArgumentParser:
         default=Path.home() / ".cache" / "stubby" / "symbols",
         help="where extracted symbols are cached (default: %(default)s)",
     )
+
+    report = sub.add_parser("report", help="turn an OpenVEX file written by `scan` into an HTML page")
+    report.add_argument("vex", type=Path, help="OpenVEX JSON file")
+    report.add_argument("-o", "--output", type=Path, help="HTML file to write (default: next to the input)")
 
     bench = sub.add_parser("bench", help="run the benchmark cases and report precision/recall")
     bench.add_argument(
@@ -137,6 +142,20 @@ def main(argv: list[str] | None = None) -> int:
         except httpx.HTTPError as exc:
             print(f"error: network failure: {exc}", file=sys.stderr)
             return 3
+
+    if args.command == "report":
+        try:
+            vex = json.loads(args.vex.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            print(f"error: cannot read {args.vex}: {exc}", file=sys.stderr)
+            return 2
+        if not isinstance(vex, dict) or "statements" not in vex:
+            print(f"error: {args.vex} is not an OpenVEX document", file=sys.stderr)
+            return 2
+        output = args.output or args.vex.with_suffix(".html")
+        output.write_text(render_report(vex), encoding="utf-8")
+        print(f"Report written to {output}", file=sys.stderr)
+        return 0
 
     if args.command == "scan":
         try:

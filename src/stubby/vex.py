@@ -58,6 +58,9 @@ def _statement(finding: Finding, product_purl: str, now: datetime) -> dict:
     }
     if not stmt["vulnerability"]["aliases"]:
         del stmt["vulnerability"]["aliases"]
+    stmt["vulnerability"]["@id"] = vuln.url
+    if vuln.description:
+        stmt["vulnerability"]["description"] = vuln.description
 
     if finding.verdict is Verdict.AFFECTED:
         stmt["action_statement"] = "Upgrade the affected dependency to a fixed version."

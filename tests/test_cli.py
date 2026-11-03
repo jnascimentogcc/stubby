@@ -63,3 +63,28 @@ def test_progress_reports_stages_and_can_be_silenced(capsys):
     report("[1/2] pkg@1 CVE-1", True)  # per-item updates are only shown on a terminal
     err = capsys.readouterr().err
     assert "... Querying OSV.dev" in err
+
+
+def test_report_command_writes_standalone_html(tmp_path, capsys):
+    import json
+
+    vex = {
+        "timestamp": "t",
+        "role": "r",
+        "statements": [
+            {
+                "vulnerability": {"name": "CVE-1", "@id": "https://nvd.nist.gov/vuln/detail/CVE-1", "description": "</script><b>x"},
+                "products": [{"@id": "pkg:npm/app@1", "subcomponents": [{"@id": "pkg:npm/lodash@4"}]}],
+                "status": "under_investigation",
+            }
+        ],
+    }
+    src = tmp_path / "vex.json"
+    src.write_text(json.dumps(vex))
+    assert cli.main(["report", str(src)]) == 0
+    html = (tmp_path / "vex.html").read_text(encoding="utf-8")
+    assert "nvd.nist.gov/vuln/detail/CVE-1" in html
+    assert "</script><b>" not in html  # advisory text cannot close the data script
+
+    (tmp_path / "bad.json").write_text("[]")
+    assert cli.main(["report", str(tmp_path / "bad.json")]) == 2

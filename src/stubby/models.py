@@ -65,6 +65,22 @@ class Vulnerability:
                 return ident
         return self.id
 
+    @property
+    def url(self) -> str:
+        """A public page describing the vulnerability: NVD for CVEs, else the GitHub or OSV page."""
+        name = self.display_id
+        if name.startswith("CVE-"):
+            return f"https://nvd.nist.gov/vuln/detail/{name}"
+        if name.startswith("GHSA-"):
+            return f"https://github.com/advisories/{name}"
+        return f"https://osv.dev/vulnerability/{name}"
+
+    @property
+    def description(self) -> str:
+        """The advisory title, or the start of its details when it has none."""
+        text = self.summary.strip() or " ".join(self.details.split())
+        return text if len(text) <= 400 else text[:397].rstrip() + "..."
+
 
 @dataclass
 class Finding:
