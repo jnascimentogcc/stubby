@@ -88,3 +88,20 @@ def test_report_command_writes_standalone_html(tmp_path, capsys):
 
     (tmp_path / "bad.json").write_text("[]")
     assert cli.main(["report", str(tmp_path / "bad.json")]) == 2
+
+
+def test_help_documents_every_option(capsys):
+    import pytest
+
+    parser = cli.build_parser()
+    for command in ("scan", "report", "bench"):
+        with pytest.raises(SystemExit) as exit_:
+            parser.parse_args([command, "--help"])
+        assert exit_.value.code == 0
+        text = capsys.readouterr().out
+        for action in parser._subparsers._group_actions[0].choices[command]._actions:
+            for flag in action.option_strings:
+                assert flag in text
+        assert "exit status" in text
+    for flag in ("--llm", "--repository", "--site-packages", "--cache-dir", "--no-fix-diff", "--quiet"):
+        assert flag in parser._subparsers._group_actions[0].choices["scan"].format_help()

@@ -6,10 +6,9 @@ that question and records the answer as an [OpenVEX](https://openvex.dev)
 document you can review, version and share.
 
 > **Early MVP (v0.7).** JS/TS projects (npm `package-lock.json`), Python projects
-> (`poetry.lock` or pinned `requirements.txt`) and Java projects (Maven `pom.xml`
-> or Gradle `gradle.lockfile`). Verdicts
-> are drafts for human review. Without `--llm`, findings are reported as
-> `under_investigation`.
+> (`poetry.lock`, pinned `requirements.txt` or `==` pins in `pyproject.toml`) and
+> Java projects (Maven `pom.xml` or Gradle `gradle.lockfile`). Verdicts are drafts
+> for human review. Without `--llm`, findings are reported as `under_investigation`.
 
 ## Quick start
 
@@ -17,7 +16,7 @@ document you can review, version and share.
 pip install stubby-vex
 
 stubby scan path/to/js-project -o vex.json
-stubby report vex.json            # optional: a standalone HTML page, with links to each advisory
+stubby report vex.json            # optional: a standalone HTML page to browse the findings
 ```
 
 Requires network access to `api.osv.dev`. Install your dependencies first (`npm install`, a `.venv` for Python, or `mvn dependency:tree` and `mvn dependency:resolve` for Java) so Stubby can also inspect the packages that depend on a vulnerable one. To also identify which function of
@@ -25,7 +24,7 @@ each package is vulnerable, add `--llm openai` (reads `OPENAI_API_KEY`). Only
 public advisory text and fix diffs are sent, never your code. Example output:
 
 ```
-lodash@4.17.15  CVE-2020-8203  inconclusive  imported in 3 file(s); members used: merge, template; 4 call site(s); vulnerable symbol not identified yet
+lodash@4.17.15  CVE-2020-8203  inconclusive  imported in 3 file(s); members used: merge, template; 4 call site(s); vulnerable symbol not identified
 ```
 
 ## Why
@@ -41,7 +40,10 @@ lodash@4.17.15  CVE-2020-8203  inconclusive  imported in 3 file(s); members used
 Stubby reads your lockfile, looks up known vulnerabilities on
 [OSV.dev](https://osv.dev), and checks how your code uses each affected
 package. Every verdict (`affected`, `not_affected` or `inconclusive`) cites file
-and line, and the output is a draft for human review, never a guarantee. See
+and line, and the output is a draft for human review, never a guarantee. When
+Stubby cannot rule a package out it says why (for example the advisory names no
+function, or the whole module is used), in the VEX and in the HTML report, which
+also links each finding to its advisory. See
 [docs/architecture.md](docs/architecture.md) for details.
 
 ## Roadmap
