@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "stubby"
+name = "stubby-vex"
 version = "0.7.0"
 description = "Reachability analysis for vulnerable dependencies, with OpenVEX output."
 readme = "README.md"
