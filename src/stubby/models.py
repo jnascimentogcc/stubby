@@ -89,3 +89,5 @@ class Finding:
     verdict: Verdict = Verdict.INCONCLUSIVE
     notes: str = ""
     evidence: list[Evidence] = field(default_factory=list)
+    # Machine-readable causes of an inconclusive verdict (see REASONS in scan.py).
+    reasons: list[str] = field(default_factory=list)

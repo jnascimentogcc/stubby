@@ -118,6 +118,15 @@ with a static OSV and a replayed LLM answer, then reports precision and recall
 per verdict. A false `not_affected` fails the run and the test suite. See
 `benchmarks/README.md` for the case format.
 
+## Why a finding is inconclusive
+
+Every inconclusive finding carries machine-readable reason codes (`Finding.reasons`,
+listed with their meaning in `scan.REASONS`), for example `symbol-unknown`,
+`whole-module-use`, `dynamic-code`, `dependent-not-installed` or
+`dependent-uses-symbol`. They are written to each VEX statement as the extension
+field `x-stubby-reasons`, and `stubby report` shows them as labels with a filter.
+`dev-only` is informational.
+
 ## Evidence
 
 Each `Evidence` has a `kind`: `import`, `call`, `ref` (binding used without a

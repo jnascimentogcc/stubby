@@ -212,6 +212,28 @@ def _same_name_calls(
     return found
 
 
+# Why a finding stayed inconclusive; the codes are written to the VEX and shown in the report.
+REASONS = {
+    "symbol-unknown": "No vulnerable function identified (scan without --llm, or the advisory names none)",
+    "llm-error": "Symbol extraction failed",
+    "low-confidence": "The vulnerable-symbol list is not confident enough to rule the package out",
+    "not-imported": "Direct dependency never imported (candidate, needs review)",
+    "transitive-unanalysed": "Transitive dependency; the packages that require it were not analysed",
+    "imported-unused": "A vulnerable symbol is imported but no call was found",
+    "whole-module-use": "The whole module is used, hiding which member is called",
+    "dynamic-code": "Dynamic code could reach the package",
+    "same-name-call": "A method named like a vulnerable one is called on an untyped receiver",
+    "incomplete-analysis": "The project could not be fully analysed",
+    "dependents-unknown": "The lockfile does not say which packages require it",
+    "dependent-not-installed": "A dependent package is not installed, so its code was not inspected",
+    "dependent-incomplete": "A dependent package could not be fully analysed",
+    "dependent-uses-symbol": "A dependent package uses a vulnerable symbol (needs call-graph analysis)",
+    "dependent-whole-module": "A dependent package uses the whole module",
+    "dependent-dynamic": "A dependent package loads modules dynamically",
+    "dev-only": "Only required by development dependencies (informational)",
+}
+
+
 def _assess(
     dep: Dependency,
     vuln: Vulnerability,
@@ -241,11 +263,13 @@ def _assess(
     imports = _imports(evidence)
     calls = [e for e in evidence if e.kind == "call"]
 
+    reasons: list[str] = []
     if not dep.direct:
         via = f" via {' > '.join(chain)}" if chain else ""
         notes = f"transitive dependency{via}"
         if not dependents:
             notes += "; reachability through the packages that require it was not analysed"
+            reasons.append("transitive-unanalysed")
     elif imports:
         files = len({e.file for e in imports})
         notes = f"imported in {files} file(s)"
@@ -255,7 +279,9 @@ def _assess(
         notes += f"; {len(calls)} call site(s)"
     else:
         notes = "direct dependency never imported in source (candidate for not_affected; needs review)"
+        reasons.append("not-imported")
     if dev_only:
+        reasons.append("dev-only")
         notes += "; only required by devDependencies (not part of the shipped runtime)"
 
     verdict = Verdict.INCONCLUSIVE
@@ -264,20 +290,24 @@ def _assess(
     if analysable:
         if llm_error:
             notes += f"; symbol extraction failed ({llm_error})"
+            reasons.append("llm-error")
         elif symbols is None or not symbols.usable:
             notes += "; vulnerable symbol not identified"
+            reasons.append("symbol-unknown")
         else:
             names = ", ".join(sorted({s.name for s in symbols.symbols}))
             notes += f"; advisory names vulnerable symbol(s): {names} (confidence {symbols.confidence})"
             verdict, shown, notes = _decide(
-                dep, symbols, evidence, dynamic, dependents, dependents_known, notes, unattributed or {}, incomplete
+                dep, symbols, evidence, dynamic, dependents, dependents_known, notes, unattributed or {}, incomplete, reasons
             )
     if dynamic and verdict is not Verdict.AFFECTED:
+        if "dynamic-code" not in reasons:
+            reasons.append("dynamic-code")
         notes += (
             f"; {len(dynamic)} dynamic or unresolved import/eval site(s) in the project "
             "could reach it, so absence of usage is not conclusive"
         )
-    return Finding(dep, vuln, verdict, notes, shown)
+    return Finding(dep, vuln, verdict, notes, shown, reasons if verdict is Verdict.INCONCLUSIVE else [])
 
 
 def _decide(
@@ -290,6 +320,7 @@ def _decide(
     notes: str,
     unattributed: dict[str, list[Evidence]],
     incomplete: bool = False,
+    reasons: list[str] | None = None,
 ) -> tuple[Verdict, list[Evidence], str]:
     project = _classify(evidence, symbols, dep.name) if dep.direct else _Usage([], [], [])
     if project.hits:
@@ -297,43 +328,54 @@ def _decide(
 
     blockers: list[str] = []
     cited: list[Evidence] = []
+    reasons = reasons if reasons is not None else []
+
+    def block(code: str, text: str) -> None:
+        blockers.append(text)
+        if code not in reasons:
+            reasons.append(code)
+
     if project.imported_only:
-        blockers.append("vulnerable symbol imported but no call found")
+        block("imported-unused", "vulnerable symbol imported but no call found")
     if project.opaque:
-        blockers.append(f"{len(project.opaque)} use(s) of the whole module hide which member is called")
+        block("whole-module-use", f"{len(project.opaque)} use(s) of the whole module hide which member is called")
     if dynamic:
-        blockers.append("dynamic code in the project")
-    blockers += _same_name_calls(symbols, unattributed, "the project")
+        block("dynamic-code", "dynamic code in the project")
+    for text in _same_name_calls(symbols, unattributed, "the project"):
+        block("same-name-call", text)
     if incomplete:
-        blockers.append("the project could not be fully analysed (unreadable or oversized files, or unmapped dependencies)")
+        block("incomplete-analysis", "the project could not be fully analysed (unreadable or oversized files, or unmapped dependencies)")
 
     if not dependents_known:
-        blockers.append("lockfile does not say which packages require it (v1 lockfile)")
+        block("dependents-unknown", "lockfile does not say which packages require it (v1 lockfile)")
     for d in dependents:
         label = f"{d.node.name}@{d.node.version}"
         if not d.installed:
-            blockers.append(f"dependent {label} is not installed, so its code was not inspected (run npm install)")
+            block("dependent-not-installed", f"dependent {label} is not installed, so its code was not inspected (run npm install)")
             continue
         if d.incomplete:
-            blockers.append(f"dependent {label} could not be fully analysed")
+            block("dependent-incomplete", f"dependent {label} could not be fully analysed")
         usage = _classify(d.evidence, symbols, dep.name)
         if usage.hits or usage.imported_only:
             sites = usage.hits + usage.imported_only
             cited += sites
-            blockers.append(
+            block(
+                "dependent-uses-symbol",
                 f"dependent {label} uses a vulnerable symbol ({sites[0].file}:{sites[0].line}); "
                 "whether the project reaches it needs call-graph analysis"
             )
         if usage.opaque:
-            blockers.append(f"dependent {label} uses the whole module, hiding which member is called")
+            block("dependent-whole-module", f"dependent {label} uses the whole module, hiding which member is called")
         if d.dynamic:
-            blockers.append(f"dependent {label} loads modules dynamically")
-        blockers += _same_name_calls(symbols, d.unattributed, f"dependent {label}")
+            block("dependent-dynamic", f"dependent {label} loads modules dynamically")
+        for text in _same_name_calls(symbols, d.unattributed, f"dependent {label}"):
+            block("same-name-call", text)
         cited += d.evidence
 
     if blockers:
         return Verdict.INCONCLUSIVE, evidence + cited, notes + "; " + "; ".join(blockers)
     if symbols.confidence != "high":
+        reasons.append("low-confidence")
         return Verdict.INCONCLUSIVE, evidence, notes + "; symbol list not confident enough to rule the package out"
     if dep.direct:
         extra = f"; none of them is used by the project or its {len(dependents)} dependent package(s)" if dependents else "; none of them is used by the project"

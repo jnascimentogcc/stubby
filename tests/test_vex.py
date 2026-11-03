@@ -73,3 +73,10 @@ def test_author_is_configurable(author):
     doc = build_vex(ScanResult("app", "1.0.0", "npm", []), author=author, now=NOW)
     assert doc["author"] == author
     assert doc["statements"] == []
+
+
+def test_inconclusive_statement_lists_reason_codes():
+    finding = Finding(DEP, VULN, Verdict.INCONCLUSIVE, "n", reasons=["symbol-unknown", "dev-only"])
+    stmt = build_vex(ScanResult("app", "1.0.0", "npm", [finding]), now=NOW)["statements"][0]
+    assert stmt["x-stubby-reasons"] == ["symbol-unknown", "dev-only"]
+    assert "x-stubby-reasons" not in statement_for(Verdict.AFFECTED)
