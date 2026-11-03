@@ -15,7 +15,7 @@ from pathlib import Path
 from ..graph import DependencyGraph
 from ..lockfiles.npm import parse_package_lock, parse_package_lock_graph
 from ..models import Dependency, Evidence
-from .base import UsageReport
+from .base import UsageReport, remember_unattributed
 from .js_ast import analyze_source, package_name_from_specifier
 
 __all__ = ["JavaScriptAdapter", "package_name_from_specifier"]
@@ -53,6 +53,9 @@ class JavaScriptAdapter:
     def analyze_package(self, project_dir: Path, location: str) -> UsageReport:
         return _analyze_tree(project_dir, project_dir / location, PACKAGE_SKIP_DIRS)
 
+    def configured(self, **_options) -> "JavaScriptAdapter":
+        return self
+
     def is_installed(self, project_dir: Path, location: str) -> bool:
         return (project_dir / location).is_dir()
 
@@ -72,6 +75,7 @@ def _analyze_tree(project_dir: Path, root: Path, skip_dirs: set[str]) -> UsageRe
     """Analyse every source file under ``root``; evidence paths are relative to ``project_dir``."""
     by_package: dict[str, set[Evidence]] = defaultdict(set)
     dynamic: set[Evidence] = set()
+    unattributed: dict[str, list[Evidence]] = {}
     incomplete = False
     for path in _iter_source_files(root, skip_dirs):
         try:
@@ -91,7 +95,9 @@ def _analyze_tree(project_dir: Path, root: Path, skip_dirs: set[str]) -> UsageRe
         analysis = analyze_source(source, path.suffix)
         for obs in analysis.observations:
             ev = Evidence(rel, obs.line, snippet(obs.line), obs.kind, obs.symbol, obs.module)
-            if obs.package is None:
+            if obs.kind == "maybe":
+                remember_unattributed(unattributed, ev)
+            elif obs.package is None:
                 dynamic.add(ev)
             else:
                 by_package[obs.package].add(ev)
@@ -106,6 +112,7 @@ def _analyze_tree(project_dir: Path, root: Path, skip_dirs: set[str]) -> UsageRe
     return UsageReport(
         by_package={pkg: _ordered(evs) for pkg, evs in by_package.items()},
         dynamic=_ordered(dynamic),
+        unattributed=unattributed,
         incomplete=incomplete,
     )
 

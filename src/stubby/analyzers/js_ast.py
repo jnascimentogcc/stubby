@@ -74,7 +74,28 @@ def analyze_source(source: bytes, suffix: str) -> FileAnalysis:
     for node in nodes:
         if node.type in ("identifier", "shorthand_property_identifier") and node.start_byte not in declaring:
             _handle_reference(node, analysis, bindings)
+        elif node.type == "call_expression":
+            _handle_untracked_member_call(node, analysis, bindings)
     return analysis
+
+
+def _handle_untracked_member_call(node: Node, analysis: FileAnalysis, bindings: dict) -> None:
+    """`x.name()` where `x` is not a tracked import: it may still be a package object.
+
+    Values returned by tracked calls flow into untracked variables, so the method
+    name is recorded; it only matters if it matches a vulnerable symbol.
+    """
+    func = node.child_by_field_name("function")
+    if func is None or func.type != "member_expression":
+        return
+    base = func.child_by_field_name("object")
+    while base is not None and base.type == "member_expression":
+        base = base.child_by_field_name("object")
+    if base is not None and base.type == "identifier" and _text(base) in bindings:
+        return
+    prop = func.child_by_field_name("property")
+    if prop is not None:
+        analysis.observations.append(Observation(None, _line(node), "maybe", _text(prop)))
 
 
 def _walk(root: Node):

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "stubby"
-version = "0.6.0"
+version = "0.7.0"
 description = "Reachability analysis for vulnerable dependencies, with OpenVEX output."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -15,6 +15,7 @@ dependencies = [
     "tree-sitter-javascript>=0.23",
     "tree-sitter-typescript>=0.23",
     "tree-sitter-python>=0.23",
+    "tree-sitter-java>=0.23",
     "tomli>=2; python_version < '3.11'",
 ]
 

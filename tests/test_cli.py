@@ -17,7 +17,7 @@ def fake_result() -> ScanResult:
 
 
 def test_scan_prints_findings_and_writes_vex(monkeypatch, tmp_path, capsys):
-    monkeypatch.setattr(cli, "scan_project", lambda path, extractor=None, site_packages=None: fake_result())
+    monkeypatch.setattr(cli, "scan_project", lambda path, extractor=None, site_packages=None, repository=None: fake_result())
     out = tmp_path / "vex.json"
 
     assert cli.main(["scan", str(tmp_path), "-o", str(out), "--author", "me"]) == 0
@@ -30,14 +30,14 @@ def test_scan_prints_findings_and_writes_vex(monkeypatch, tmp_path, capsys):
 
 
 def test_scan_without_output_does_not_write_file(monkeypatch, tmp_path):
-    monkeypatch.setattr(cli, "scan_project", lambda path, extractor=None, site_packages=None: fake_result())
+    monkeypatch.setattr(cli, "scan_project", lambda path, extractor=None, site_packages=None, repository=None: fake_result())
     monkeypatch.chdir(tmp_path)
     assert cli.main(["scan"]) == 0
     assert list(tmp_path.iterdir()) == []
 
 
 def test_unsupported_project_exits_with_2(monkeypatch, capsys):
-    def boom(path, extractor=None, site_packages=None):
+    def boom(path, extractor=None, site_packages=None, repository=None):
         raise ValueError("No supported project found")
 
     monkeypatch.setattr(cli, "scan_project", boom)
@@ -46,7 +46,7 @@ def test_unsupported_project_exits_with_2(monkeypatch, capsys):
 
 
 def test_osv_network_failure_exits_with_3(monkeypatch, capsys):
-    def boom(path, extractor=None, site_packages=None):
+    def boom(path, extractor=None, site_packages=None, repository=None):
         raise httpx.ConnectError("offline")
 
     monkeypatch.setattr(cli, "scan_project", boom)

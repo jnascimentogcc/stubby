@@ -86,6 +86,31 @@ so nothing is ruled out and a warning says so. Python specifics:
 - Not covered: `*.egg-info` environments (no `RECORD`), `Pipfile.lock`, wildcard
   re-exports and reflection beyond `getattr` on a tracked name.
 
+## Java
+
+`JavaAdapter` reads `pom.xml` (direct dependencies; properties and
+`dependencyManagement` are interpolated, unresolved versions are warned about,
+`test` scope counts as dev) and, when present, the output of
+`mvn dependency:tree -DoutputFile=dependency-tree.txt`, which supplies the
+transitive dependencies and the graph. `gradle.lockfile` gives the resolved
+versions but no graph, so dependents stay unknown there. Source files import
+classes, not artifacts, so classes are mapped to artifacts through the jars
+Maven or Gradle downloaded (`~/.m2`, the Gradle cache, `.m2/repository` in the
+project, or `--repository`); a jar also supplies the bytecode of dependents,
+read from the constant pool of its `.class` files (methods called, classes
+referenced, reflection entry points). Java specifics:
+
+- Receivers are typed from their declarations (locals, fields, parameters,
+  `new X()`), so `yaml.load(..)` is attributed to the class of `yaml`. Receivers
+  that cannot be typed (`var x = f()`, chained calls) are recorded by method name
+  and block `not_affected` when the name matches a vulnerable symbol.
+- Wildcard imports, `Class.forName`, `loadClass` and `ServiceLoader.load` are
+  opaque. A fully qualified name written inline counts as use.
+- A dependency whose jar is missing makes the project analysis incomplete, so
+  nothing is ruled out until the jars are available.
+- Not covered: Kotlin and other JVM languages (a warning is issued), Gradle
+  version catalogs and dynamic versions, shaded or repackaged classes.
+
 ## Benchmark
 
 `bench.py` runs the cases in `benchmarks/cases/` through the real `scan_project`
@@ -109,6 +134,8 @@ src/stubby/
   models.py          dataclasses: Dependency, Vulnerability, Finding, Evidence
   lockfiles/npm.py   package-lock.json (v1/v2/v3) parser
   lockfiles/python.py poetry.lock, requirements.txt, pyproject.toml readers
+  lockfiles/java.py  pom.xml, mvn dependency:tree output, gradle.lockfile readers
+  jars.py            jar locator and class-file constant pool reader
   osv.py             OSV.dev client
   pyenv.py           installed Python environment index (RECORD, METADATA)
   analyzers/
@@ -117,6 +144,8 @@ src/stubby/
     js_ast.py        tree-sitter analysis of one JS/TS file
     python.py        Python adapter (module -> distribution mapping)
     py_ast.py        tree-sitter analysis of one Python file
+    java.py          Java adapter (class -> artifact mapping through jars)
+    java_ast.py      tree-sitter analysis of one Java file
     observations.py  what a file analysis reports (shared)
   llm/base.py        LLM provider protocol; llm/openai.py is the OpenAI provider
   symbols.py         vulnerable-symbol extraction, validation and cache
@@ -153,7 +182,8 @@ Adding a language means implementing `LanguageAdapter` (lockfile parsing and
   whole-module use, and any non-relative dynamic `require` in a dependent blocks
   `not_affected`; both err on the cautious side.
 - Lockfile v1 has no install locations, so dependents are unknown there.
-- A scan covers one ecosystem: npm wins when both `package-lock.json` and a Python lockfile exist.
+- A scan covers one ecosystem: npm wins over Python, which wins over Java, when several are present.
+- Method calls on receivers whose type cannot be determined are matched by name only, so a same-named method on an unrelated object blocks `not_affected` (two benchmark cases document this cost).
 - Symbol extraction depends on advisory quality; many advisories name no symbol.
 - Dynamic features defeat static analysis and must yield `inconclusive`.
 - OSV data quality varies; some advisories name no affected symbol.

@@ -15,9 +15,10 @@ pytest tests/test_pipeline.py::test_vex_document_shape   # single test
 stubby scan path/to/js-project -o vex.json             # needs network (api.osv.dev)
 stubby bench                            # benchmark (offline); exit 1 on a false not_affected
 stubby scan . --site-packages .venv/lib/python3.12/site-packages   # Python: inspect this environment
+stubby scan . --repository ~/.m2/repository                        # Java: where the dependency jars live
 ```
 
-No linter or formatter is configured. Python >= 3.10, hatchling build, runtime dependencies are `httpx`, tree-sitter and its JS/TS/Python grammars.
+No linter or formatter is configured. Python >= 3.10, hatchling build, runtime dependencies are `httpx`, tree-sitter and its JS/TS/Python/Java grammars.
 
 ## Documentation
 
@@ -28,7 +29,7 @@ README.md is the public showcase of the open-source project: keep it short and c
 Pipeline orchestrated by `scan.scan_project`: lockfile -> dependencies -> OSV.dev lookup -> vulnerabilities -> per-finding assessment against detected imports -> OpenVEX (`vex.build_vex`).
 
 - **Language adapters** (`analyzers/base.py`, `LanguageAdapter` Protocol): one per ecosystem, providing `detect`, `load_dependencies` (name, version, deps) and `analyze` (returns a `UsageReport`: `Evidence` per package plus unattributable `dynamic` sites). `scan.ADAPTERS` is the registry; the first adapter whose `detect` matches wins. Adding a language = implement the protocol and register it there.
-- **`analyzers/python.py`** (+ `py_ast.py`, `pyenv.py`, `lockfiles/python.py`) is the Python adapter: modules map to distributions via an installed environment's `RECORD`; unattributable imports count as dynamic code. Details in `docs/architecture.md`. **`analyzers/javascript.py`** walks source files (skipping `node_modules`, `dist`, `build`, etc. and `.d.ts`); **`analyzers/js_ast.py`** does the per-file tree-sitter analysis (imports, bound members, call/ref sites, dynamic `require`/`import()`/`eval`). Files with syntax errors also get a regex fallback so imports are never lost. Scoping is ignored on purpose (over-reports, never hides usage).
+- **`analyzers/python.py`** (+ `py_ast.py`, `pyenv.py`, `lockfiles/python.py`) is the Python adapter: modules map to distributions via an installed environment's `RECORD`; unattributable imports count as dynamic code. Details in `docs/architecture.md`. **`analyzers/java.py`** (+ `java_ast.py`, `jars.py`, `lockfiles/java.py`) is the Java adapter: classes map to Maven artifacts through downloaded jars and dependents are read from class-file constant pools. **`analyzers/javascript.py`** walks source files (skipping `node_modules`, `dist`, `build`, etc. and `.d.ts`); **`analyzers/js_ast.py`** does the per-file tree-sitter analysis (imports, bound members, call/ref sites, dynamic `require`/`import()`/`eval`). Files with syntax errors also get a regex fallback so imports are never lost. Scoping is ignored on purpose (over-reports, never hides usage).
 - **`models.py`**: shared dataclasses (`Dependency`, `Vulnerability`, `Evidence`, `Finding`) and the `Verdict` enum. `Dependency.purl` builds the package URL used in VEX output.
 - **`symbols.py`** (+ `fixes.py`, `llm/`): optional (`--llm openai`) extraction of vulnerable symbols; the LLM only proposes, each symbol needs a verbatim advisory/diff quote or it is dropped. Only advisory data is sent, never project code.
 

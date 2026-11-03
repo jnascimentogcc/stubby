@@ -90,7 +90,7 @@ def dependent(name="some-lib", evidence=(), installed=True, dynamic=(), incomple
     from stubby.graph import GraphNode
 
     node = GraphNode(f"node_modules/{name}", name, "1.0.0")
-    return DependentUsage(node, installed, list(evidence), list(dynamic), incomplete)
+    return DependentUsage(node, installed, list(evidence), list(dynamic), incomplete=incomplete)
 
 
 def ev(kind, symbol, line=1):

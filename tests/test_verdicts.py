@@ -137,3 +137,14 @@ def test_cli_llm_without_api_key_exits_with_2(monkeypatch, capsys):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     assert cli.main(["scan", ".", "--llm", "openai"]) == 2
     assert "OPENAI_API_KEY" in capsys.readouterr().err
+
+
+def test_same_name_method_on_untyped_receiver_blocks_not_affected():
+    evidence = [ev("import", "merge"), ev("call", "merge", 4)]
+    unattributed = {"template": [Evidence("b.js", 9, "p.template(x)", "maybe", "template")]}
+    f = _assess(DEP, VULN, evidence, [], symbols(), unattributed=unattributed)
+    assert f.verdict is Verdict.INCONCLUSIVE
+    assert "template() on a receiver of unknown type (b.js:9)" in f.notes
+
+    unrelated = {"debounce": [Evidence("b.js", 9, "p.debounce(x)", "maybe", "debounce")]}
+    assert _assess(DEP, VULN, evidence, [], symbols(), unattributed=unrelated).verdict is Verdict.NOT_AFFECTED

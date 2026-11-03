@@ -14,7 +14,11 @@ CASES = Path(__file__).parent.parent / "benchmarks" / "cases"
 
 
 def obs(code: str):
-    return [(o.package, o.kind, o.symbol, o.module, o.line) for o in analyze_source(code.encode()).observations]
+    return [
+        (o.package, o.kind, o.symbol, o.module, o.line)
+        for o in analyze_source(code.encode()).observations
+        if o.kind != "maybe"
+    ]
 
 
 # -- py_ast ---------------------------------------------------------------
@@ -73,6 +77,12 @@ def test_star_import_and_dynamic_imports():
 def test_attribute_names_keywords_and_parameters_are_not_references():
     code = "import requests\nobj.requests\nf(requests=1)\ndef g(requests): pass\nclass requests: pass\n"
     assert obs(code) == [("requests", "import", "*", "requests", 1)]
+
+
+def test_method_calls_on_untracked_receivers_are_recorded_by_name():
+    code = "import yaml\nyaml.load(x)\nloader = yaml.Loader(s)\nloader.get_data()\nself.cache.set(k)\n\n"
+    maybe = [o.symbol for o in analyze_source(code.encode()).observations if o.kind == "maybe"]
+    assert maybe == ["get_data", "set"]
 
 
 def test_syntax_errors_are_flagged():
@@ -251,7 +261,7 @@ def test_cli_prints_scan_warnings(monkeypatch, tmp_path, capsys):
     from stubby.scan import ScanResult
 
     monkeypatch.setattr(
-        cli, "scan_project", lambda path, extractor=None, site_packages=None: ScanResult("a", "1", "PyPI", [], ["be careful"])
+        cli, "scan_project", lambda path, extractor=None, site_packages=None, repository=None: ScanResult("a", "1", "PyPI", [], ["be careful"])
     )
     assert cli.main(["scan", str(tmp_path)]) == 0
     assert "warning: be careful" in capsys.readouterr().err

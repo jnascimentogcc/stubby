@@ -43,11 +43,31 @@ def analyze_source(source: bytes) -> FileAnalysis:
         elif node.type == "call":
             _handle_dynamic_call(node, analysis)
 
-    if bindings:
-        for node in nodes:
-            if node.type == "identifier" and node.text.decode() in bindings:
-                _handle_reference(node, analysis, bindings)
+    for node in nodes:
+        if bindings and node.type == "identifier" and node.text.decode() in bindings:
+            _handle_reference(node, analysis, bindings)
+        elif node.type == "call":
+            _handle_untracked_method_call(node, analysis, bindings)
     return analysis
+
+
+def _handle_untracked_method_call(node: Node, analysis: FileAnalysis, bindings: dict) -> None:
+    """`x.name()` where `x` is not a tracked import: it may still be a package object.
+
+    Values returned by tracked calls flow into untracked variables, so the method
+    name is recorded; it only matters if it matches a vulnerable symbol.
+    """
+    func = node.child_by_field_name("function")
+    if func is None or func.type != "attribute":
+        return
+    base = func.child_by_field_name("object")
+    while base is not None and base.type == "attribute":
+        base = base.child_by_field_name("object")
+    if base is not None and base.type == "identifier" and _text(base) in bindings:
+        return
+    analysis.observations.append(
+        Observation(None, _line(node), "maybe", _text(func.child_by_field_name("attribute")))
+    )
 
 
 def _walk(root: Node):

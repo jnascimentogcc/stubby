@@ -26,7 +26,7 @@ from ..lockfiles.python import (
 )
 from ..models import Dependency, Evidence
 from ..pyenv import PythonEnvironment, find_site_packages, normalize
-from .base import UsageReport
+from .base import UsageReport, remember_unattributed
 from .py_ast import analyze_source
 
 SKIP_DIRS = {
@@ -71,7 +71,7 @@ class PythonAdapter:
         self.site_packages = site_packages
         self._cache: dict[Path, _State] = {}
 
-    def with_environment(self, site_packages: Path | None) -> "PythonAdapter":
+    def configured(self, site_packages: Path | None = None, repository: Path | None = None) -> "PythonAdapter":
         return PythonAdapter(site_packages) if site_packages else self
 
     def detect(self, project_dir: Path) -> bool:
@@ -165,6 +165,7 @@ class PythonAdapter:
         state = self._state(project_dir)
         by_package: dict[str, set[Evidence]] = defaultdict(set)
         dynamic: set[Evidence] = set()
+        unattributed: dict[str, list[Evidence]] = {}
         incomplete = False
 
         for path in files:
@@ -194,6 +195,9 @@ class PythonAdapter:
                             observations.append((match.group(1), line, "import", None, match.group(1)))
 
             for top, line, kind, symbol, module in observations:
+                if kind == "maybe":
+                    remember_unattributed(unattributed, Evidence(rel, line, snippet(line), "maybe", symbol))
+                    continue
                 if top is None:
                     dynamic.add(Evidence(rel, line, snippet(line), "dynamic", symbol))
                     continue
@@ -209,6 +213,7 @@ class PythonAdapter:
         return UsageReport(
             by_package={d: _ordered(evs) for d, evs in by_package.items()},
             dynamic=_ordered(dynamic),
+            unattributed=unattributed,
             incomplete=incomplete,
         )
 

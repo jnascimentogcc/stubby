@@ -9,6 +9,7 @@ from pathlib import Path
 import httpx
 
 from .analyzers.base import LanguageAdapter
+from .analyzers.java import JavaAdapter
 from .analyzers.javascript import JavaScriptAdapter
 from .analyzers.python import PythonAdapter
 from .graph import DependencyGraph, GraphNode
@@ -17,7 +18,7 @@ from .models import Dependency, Evidence, Finding, Verdict, Vulnerability
 from .osv import OSVClient
 from .symbols import SymbolExtractor, VulnerableSymbols
 
-ADAPTERS: list[LanguageAdapter] = [JavaScriptAdapter(), PythonAdapter()]
+ADAPTERS: list[LanguageAdapter] = [JavaScriptAdapter(), PythonAdapter(), JavaAdapter()]
 
 # Uses of a package binding whose member cannot be told apart from the vulnerable one.
 _OPAQUE_SYMBOLS = {None, "*", "default"}
@@ -40,6 +41,7 @@ class DependentUsage:
     installed: bool
     evidence: list[Evidence] = field(default_factory=list)
     dynamic: list[Evidence] = field(default_factory=list)
+    unattributed: dict[str, list[Evidence]] = field(default_factory=dict)
     incomplete: bool = False
 
 
@@ -48,16 +50,18 @@ def scan_project(
     osv: OSVClient | None = None,
     extractor: SymbolExtractor | None = None,
     site_packages: Path | None = None,
+    repository: Path | None = None,
 ) -> ScanResult:
     project_dir = project_dir.resolve()
     adapter = next((a for a in ADAPTERS if a.detect(project_dir)), None)
     if adapter is None:
         raise ValueError(
             f"No supported project found in {project_dir} (supports npm projects with a "
-            "package-lock.json and Python projects with a poetry.lock or pinned requirements.txt)."
+            "package-lock.json, Python projects with a poetry.lock or pinned requirements.txt, and "
+            "Java projects with a pom.xml or gradle.lockfile)."
         )
-    if site_packages is not None and hasattr(adapter, "with_environment"):
-        adapter = adapter.with_environment(site_packages)
+    if hasattr(adapter, "configured"):
+        adapter = adapter.configured(site_packages=site_packages, repository=repository)
 
     name, version, deps = adapter.load_dependencies(project_dir)
     usage = adapter.analyze(project_dir)
@@ -100,6 +104,8 @@ def scan_project(
                     usage.dynamic,
                     symbols,
                     error,
+                    unattributed=usage.unattributed,
+                    incomplete=usage.incomplete,
                     dependents=dependents,
                     dependents_known=graph is not None,
                     chain=chain,
@@ -140,6 +146,7 @@ def _collect_dependents(
                 True,
                 report.by_package.get(dep.name, []),
                 report.dynamic,
+                report.unattributed,
                 report.incomplete,
             )
     return list(found.values())
@@ -178,6 +185,22 @@ def _classify(evidence: list[Evidence], symbols: VulnerableSymbols, package: str
     )
 
 
+def _same_name_calls(
+    symbols: VulnerableSymbols, unattributed: dict[str, list[Evidence]], where: str
+) -> list[str]:
+    """Calls of a method named like a vulnerable symbol on receivers we could not type."""
+    found = []
+    for name in sorted({sym.name for sym in symbols.symbols}):
+        examples = unattributed.get(name)
+        if examples:
+            first = examples[0]
+            found.append(
+                f"{where} calls a method named {name}() on a receiver of unknown type "
+                f"({first.file}:{first.line}); it may be the vulnerable one"
+            )
+    return found
+
+
 def _assess(
     dep: Dependency,
     vuln: Vulnerability,
@@ -189,6 +212,8 @@ def _assess(
     dependents_known: bool = True,
     chain: list[str] | None = None,
     dev_only: bool = False,
+    unattributed: dict[str, list[Evidence]] | None = None,
+    incomplete: bool = False,
 ) -> Finding:
     """Assess how the project reaches a vulnerable dependency.
 
@@ -234,7 +259,7 @@ def _assess(
             names = ", ".join(sorted({s.name for s in symbols.symbols}))
             notes += f"; advisory names vulnerable symbol(s): {names} (confidence {symbols.confidence})"
             verdict, shown, notes = _decide(
-                dep, symbols, evidence, dynamic, dependents, dependents_known, notes
+                dep, symbols, evidence, dynamic, dependents, dependents_known, notes, unattributed or {}, incomplete
             )
     if dynamic and verdict is not Verdict.AFFECTED:
         notes += (
@@ -252,6 +277,8 @@ def _decide(
     dependents: list[DependentUsage],
     dependents_known: bool,
     notes: str,
+    unattributed: dict[str, list[Evidence]],
+    incomplete: bool = False,
 ) -> tuple[Verdict, list[Evidence], str]:
     project = _classify(evidence, symbols, dep.name) if dep.direct else _Usage([], [], [])
     if project.hits:
@@ -265,6 +292,9 @@ def _decide(
         blockers.append(f"{len(project.opaque)} use(s) of the whole module hide which member is called")
     if dynamic:
         blockers.append("dynamic code in the project")
+    blockers += _same_name_calls(symbols, unattributed, "the project")
+    if incomplete:
+        blockers.append("the project could not be fully analysed (unreadable or oversized files, or unmapped dependencies)")
 
     if not dependents_known:
         blockers.append("lockfile does not say which packages require it (v1 lockfile)")
@@ -287,6 +317,7 @@ def _decide(
             blockers.append(f"dependent {label} uses the whole module, hiding which member is called")
         if d.dynamic:
             blockers.append(f"dependent {label} loads modules dynamically")
+        blockers += _same_name_calls(symbols, d.unattributed, f"dependent {label}")
         cited += d.evidence
 
     if blockers:

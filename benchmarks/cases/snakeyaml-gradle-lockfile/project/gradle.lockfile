@@ -1,0 +1,3 @@
+# lockfile
+org.yaml:snakeyaml:1.33=compileClasspath,runtimeClasspath
+empty=

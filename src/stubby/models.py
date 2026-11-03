@@ -25,7 +25,8 @@ class Dependency:
         purl_type = {"npm": "npm", "PyPI": "pypi", "Maven": "maven"}.get(
             self.ecosystem, self.ecosystem.lower()
         )
-        return f"pkg:{purl_type}/{quote(self.name, safe='/')}@{self.version}"
+        name = self.name.replace(":", "/") if self.ecosystem == "Maven" else self.name  # group:artifact
+        return f"pkg:{purl_type}/{quote(name, safe='/')}@{self.version}"
 
 
 @dataclass(frozen=True)

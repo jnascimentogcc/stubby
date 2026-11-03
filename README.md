@@ -5,8 +5,9 @@ whether **your code can actually reach the vulnerable code**. Stubby answers
 that question and records the answer as an [OpenVEX](https://openvex.dev)
 document you can review, version and share.
 
-> **Early MVP (v0.6).** JS/TS projects (npm `package-lock.json`) and Python projects
-> (`poetry.lock` or pinned `requirements.txt`). Verdicts
+> **Early MVP (v0.7).** JS/TS projects (npm `package-lock.json`), Python projects
+> (`poetry.lock` or pinned `requirements.txt`) and Java projects (Maven `pom.xml`
+> or Gradle `gradle.lockfile`). Verdicts
 > are drafts for human review. Without `--llm`, findings are reported as
 > `under_investigation`.
 
@@ -18,7 +19,7 @@ pip install -e .
 stubby scan path/to/js-project -o vex.json
 ```
 
-Requires network access to `api.osv.dev`. Install your dependencies first (`npm install`, or a `.venv` for Python) so Stubby can also inspect the packages that depend on a vulnerable one. To also identify which function of
+Requires network access to `api.osv.dev`. Install your dependencies first (`npm install`, a `.venv` for Python, or `mvn dependency:tree` and `mvn dependency:resolve` for Java) so Stubby can also inspect the packages that depend on a vulnerable one. To also identify which function of
 each package is vulnerable, add `--llm openai` (reads `OPENAI_API_KEY`). Only
 public advisory text and fix diffs are sent, never your code. Example output:
 
@@ -46,11 +47,11 @@ and line, and the output is a draft for human review, never a guarantee. See
 
 - [x] v0.1 – npm lockfile, OSV lookup, import-level detection, OpenVEX output
 - [x] v0.2 – tree-sitter based JS/TS analysis (named imports, call sites)
-- [ ] v0.3 – LLM symbol extraction from advisory text and fix-commit diff
-- [ ] v0.4 – benchmark suite (known CVEs, expected verdicts)
-- [ ] v0.5 – transitive dependencies
-- [ ] v0.6 – Python adapter
-- [ ] v0.7 – Java adapter
+- [x] v0.3 – LLM symbol extraction from advisory text and fix-commit diff
+- [x] v0.4 – benchmark suite (known CVEs, expected verdicts)
+- [x] v0.5 – transitive dependencies
+- [x] v0.6 – Python adapter
+- [x] v0.7 – Java adapter
 
 ## Why "Stubby"?
 

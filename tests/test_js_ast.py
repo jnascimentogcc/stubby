@@ -6,7 +6,11 @@ from stubby.scan import _assess
 
 def obs(code: str, suffix: str = ".ts"):
     analysis = analyze_source(code.encode(), suffix)
-    return [(o.package, o.kind, o.symbol, o.line) for o in analysis.observations]
+    return [(o.package, o.kind, o.symbol, o.line) for o in analysis.observations if o.kind != "maybe"]
+
+
+def maybe(code: str, suffix: str = ".ts"):
+    return [o.symbol for o in analyze_source(code.encode(), suffix).observations if o.kind == "maybe"]
 
 
 def test_named_import_with_alias_and_call():
@@ -126,3 +130,8 @@ def test_dynamic_code_noted_even_when_package_never_imported():
     finding = _assess(dep, Vulnerability(id="X"), [], dyn)
     assert "never imported" in finding.notes
     assert "not conclusive" in finding.notes
+
+
+def test_member_calls_on_untracked_receivers_are_recorded_by_name():
+    code = "import _ from 'lodash';\n_.merge(a);\nconst p = _.chain(x);\np.template(s);\nfoo().bar();\nthis.cache.set(k);\n\n"
+    assert maybe(code) == ["template", "bar", "set"]  # `_.merge` and `_.chain` are tracked

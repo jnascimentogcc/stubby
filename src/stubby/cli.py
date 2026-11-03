@@ -38,6 +38,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     scan.add_argument("--llm-model", help="model name for --llm (default: provider's default)")
     scan.add_argument(
+        "--repository",
+        type=Path,
+        help="Maven repository or Gradle cache holding the dependency jars of a Java project "
+        "(default: ~/.m2, ~/.gradle and .m2/repository in the project)",
+    )
+    scan.add_argument(
         "--site-packages",
         type=Path,
         help="site-packages of the Python environment to inspect "
@@ -113,7 +119,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "scan":
         try:
             extractor = _build_extractor(args)
-            result = scan_project(args.path, extractor=extractor, site_packages=args.site_packages)
+            result = scan_project(
+                args.path, extractor=extractor, site_packages=args.site_packages, repository=args.repository
+            )
         except LLMError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
