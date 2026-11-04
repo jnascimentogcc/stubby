@@ -84,9 +84,9 @@ O maior risco é a ferramenta dar falsa segurança; os restantes são de escopo 
 
 ## Open-source e questões em aberto
 
-O projeto nasce com licença Apache-2.0, desenvolvimento aberto e a contribuição mais valiosa bem definida: casos de benchmark.
+O projeto usa a licença MIT, desenvolvimento aberto e a contribuição mais valiosa bem definida: casos de benchmark.
 
-- **Licença:** Apache-2.0, por incluir concessão explícita de patentes e ser comum em ferramentas de segurança.
+- **Licença:** MIT, por ser curta, permissiva e amplamente conhecida. O projeto nasceu com Apache-2.0 (até a v0.10.0) e mudou para MIT, abrindo mão da concessão explícita de patentes.
 - **Contribuir:** o caminho de entrada é enviar um caso de benchmark (um CVE real, um projeto pequeno e o veredicto esperado). Mudanças grandes devem ser discutidas numa issue antes.
 - **Extensibilidade:** cada nova linguagem entra como um adaptador que implementa a mesma interface, o que permite contribuições de terceiros sem tocar no núcleo.
 - **Governação:** mantenedor único no início, com decisões registadas em issues públicas; rever o modelo se surgirem mantenedores regulares.

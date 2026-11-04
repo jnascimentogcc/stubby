@@ -119,4 +119,4 @@ most valuable contribution; see [benchmarks/](benchmarks/README.md). Open an iss
 
 ## License
 
-Apache-2.0
+MIT
