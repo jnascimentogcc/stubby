@@ -27,6 +27,20 @@ public advisory text and fix diffs are sent, never your code. Example output:
 lodash@4.17.15  CVE-2020-8203  inconclusive  imported in 3 file(s); members used: merge, template; 4 call site(s); vulnerable symbol not identified
 ```
 
+## What you get
+
+The scan prints one line per finding, with the reason for each verdict:
+
+![stubby scan output](docs/images/scan-terminal.png)
+
+`stubby report` turns the VEX file into a page you can filter by verdict, reason or text
+(light and dark themes):
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/report-dark.png">
+  <img alt="Stubby HTML report" src="docs/images/report-light.png">
+</picture>
+
 ## Command line
 
 `stubby <command> --help` prints the full help of each command.
