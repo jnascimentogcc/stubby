@@ -22,7 +22,7 @@ class Dependency:
 
     @property
     def purl(self) -> str:
-        purl_type = {"npm": "npm", "PyPI": "pypi", "Maven": "maven"}.get(
+        purl_type = {"npm": "npm", "PyPI": "pypi", "Maven": "maven", "Packagist": "composer"}.get(
             self.ecosystem, self.ecosystem.lower()
         )
         name = self.name.replace(":", "/") if self.ecosystem == "Maven" else self.name  # group:artifact

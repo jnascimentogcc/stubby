@@ -111,6 +111,34 @@ referenced, reflection entry points). Java specifics:
 - Not covered: Kotlin and other JVM languages (a warning is issued), Gradle
   version catalogs and dynamic versions, shaded or repackaged classes.
 
+## PHP
+
+`PhpAdapter` reads `composer.lock` (versions, `packages-dev` as development
+scope) and `composer.json` (which packages are direct; platform requirements such
+as `php` and `ext-*` are ignored). The lockfile has no requirement graph, but
+each locked package lists what it requires, which gives the graph. Code names
+classes by namespace, not package, so a class is mapped to its package through
+the PSR-4/PSR-0 prefixes of the lockfile and the class map Composer writes to
+`vendor/composer/autoload_classmap.php`; the code of every package is read from
+`vendor/` (`composer install`). PHP specifics:
+
+- `new Foo` is a call of `Foo`, `Foo::bar()` a call of `bar`, and type hints,
+  `extends`, `implements`, traits and `instanceof` are references. `use`
+  statements (including group, aliased and `use function`) resolve names; an
+  unqualified class that was not imported is PHP's own or local.
+- A method call on an untyped value (`$x->parse()`) is recorded by method name and
+  blocks `not_affected` when the name matches a vulnerable symbol.
+- `new $class`, `$callable()`, `$object->$method()`, `eval`, `unserialize`,
+  `call_user_func*` and non-literal `include`/`require` are dynamic code. A
+  namespaced class that no package provides and the project does not define is
+  unresolved code, which also blocks `not_affected`.
+- The package graph treats strings that look like class or method names as
+  mentions, because PHP passes callables as strings (`'Foo::bar'`).
+- Not covered: Composer plugins and custom installers (packages are read from
+  `vendor/<name>`), autoloaded global functions without a namespace, and
+  frameworks that wire classes through a container or annotations: the code runs
+  without a visible `new`, so those findings tend to stay `inconclusive`.
+
 ## Benchmark
 
 `bench.py` runs the cases in `benchmarks/cases/` through the real `scan_project`
@@ -118,13 +146,13 @@ with a static OSV and a replayed LLM answer, then reports precision and recall
 per verdict. A false `not_affected` fails the run and the test suite. See
 `benchmarks/README.md` for the case format.
 
-## Reachability inside a package (npm, Python and Java)
+## Reachability inside a package (npm, Python, Java and PHP)
 
 A project that calls `tar.x()` never names `Unpack`, yet `x` creates one. Matching
 the vulnerable symbol only against names the code uses would call that
-`not_affected`. For npm, Python and Java, `not_affected` therefore also needs the installed code of
+`not_affected`. For npm, Python, Java and PHP, `not_affected` therefore also needs the installed code of
 the vulnerable package: it is reduced to a *name graph* (`reach.py`,
-`analyzers/js_reach.py`, `analyzers/py_reach.py`, `analyzers/java_reach.py`) where `a -> b` means the definition `a` mentions `b`. The
+`analyzers/js_reach.py`, `analyzers/py_reach.py`, `analyzers/java_reach.py`, `analyzers/php_reach.py`) where `a -> b` means the definition `a` mentions `b`. The
 members the project (and each dependent) uses must not reach a vulnerable symbol
 through it. Names are global to the package and unscoped, so the graph can only
 over-report reach, never hide it. Code that runs when a module loads is always
@@ -173,6 +201,8 @@ src/stubby/
   lockfiles/npm.py   package-lock.json (v1/v2/v3) parser
   lockfiles/python.py poetry.lock, requirements.txt, pyproject.toml readers
   lockfiles/java.py  pom.xml, mvn dependency:tree output, gradle.lockfile readers
+  lockfiles/php.py   composer.lock and composer.json readers
+  phpvendor.py       Composer vendor/ index (class -> package)
   jars.py            jar locator and class-file constant pool reader
   osv.py             OSV.dev client
   pyenv.py           installed Python environment index (RECORD, METADATA)
@@ -187,6 +217,9 @@ src/stubby/
     py_ast.py        tree-sitter analysis of one Python file
     java.py          Java adapter (class -> artifact mapping through jars)
     java_ast.py      tree-sitter analysis of one Java file
+    php.py           PHP adapter (class -> package through PSR-4 and the class map)
+    php_ast.py       tree-sitter analysis of one PHP file
+    php_reach.py     name graph of an installed Composer package
     observations.py  what a file analysis reports (shared)
   llm/base.py        LLM provider protocol; llm/openai.py is the OpenAI provider
   symbols.py         vulnerable-symbol extraction, validation and cache
@@ -225,7 +258,7 @@ Adding a language means implementing `LanguageAdapter` (lockfile parsing and
   whole-module use, and any non-relative dynamic `require` in a dependent blocks
   `not_affected`; both err on the cautious side.
 - Lockfile v1 has no install locations, so dependents are unknown there.
-- A scan covers one ecosystem: npm wins over Python, which wins over Java, when several are present.
+- A scan covers one ecosystem: npm wins over Python, which wins over Java, which wins over PHP, when several are present (a Laravel project with a `package-lock.json` is scanned as npm).
 - Method calls on receivers whose type cannot be determined are matched by name only, so a same-named method on an unrelated object blocks `not_affected` (two benchmark cases document this cost).
 - Symbol extraction depends on advisory quality; many advisories name no symbol.
 - Dynamic features defeat static analysis and must yield `inconclusive`.

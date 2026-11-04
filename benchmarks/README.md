@@ -27,6 +27,7 @@ project/
   node_modules/ or .venv/...            installed dependencies, when dependents matter
   pom.xml + dependency-tree.txt         Maven, or gradle.lockfile for Gradle
   .m2/repository/...                    fake jars (zip files with minimal class files) for Java
+  composer.json + composer.lock         PHP, with the packages' code under vendor/<vendor>/<name>/
 ```
 
 A Python case needs a (fake) environment at `project/.venv/lib/python3.12/site-packages`

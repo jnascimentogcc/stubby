@@ -1,0 +1,29 @@
+{
+    "packages": [
+        {
+            "name": "symfony/http-foundation",
+            "version": "v5.4.0",
+            "require": {
+                "php": ">=7.2.5"
+            },
+            "autoload": {
+                "psr-4": {
+                    "Symfony\\Component\\HttpFoundation\\": ""
+                }
+            }
+        },
+        {
+            "name": "acme/lib",
+            "version": "1.0.0",
+            "require": {
+                "symfony/http-foundation": "^5.4"
+            },
+            "autoload": {
+                "psr-4": {
+                    "Acme\\Lib\\": "src/"
+                }
+            }
+        }
+    ],
+    "packages-dev": []
+}

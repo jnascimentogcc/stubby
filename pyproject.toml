@@ -16,6 +16,7 @@ dependencies = [
     "tree-sitter-typescript>=0.23",
     "tree-sitter-python>=0.23",
     "tree-sitter-java>=0.23",
+    "tree-sitter-php>=0.23",
     "tomli>=2; python_version < '3.11'",
 ]
 

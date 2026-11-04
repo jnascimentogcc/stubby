@@ -7,8 +7,8 @@ document you can review, version and share.
 
 > **Early MVP (v0.9).** JS/TS projects (npm `package-lock.json`), Python projects
 > (`poetry.lock`, pinned `requirements.txt` or `==` pins in `pyproject.toml`) and
-> Java projects (Maven `pom.xml` or Gradle `gradle.lockfile`). Verdicts are drafts
-> for human review. Without `--llm`, findings are reported as `under_investigation`.
+> Java projects (Maven `pom.xml` or Gradle `gradle.lockfile`) and PHP projects
+> (`composer.lock`). Verdicts are drafts for human review. Without `--llm`, findings are reported as `under_investigation`.
 
 ## Quick start
 
@@ -19,7 +19,7 @@ stubby scan path/to/js-project -o vex.json
 stubby report vex.json            # optional: a standalone HTML page to browse the findings
 ```
 
-Requires network access to `api.osv.dev`. Install your dependencies first (`npm install`, a `.venv` for Python, or `mvn dependency:tree` and `mvn dependency:resolve` for Java) so Stubby can also inspect the packages that depend on a vulnerable one. To also identify which function of
+Requires network access to `api.osv.dev`. Install your dependencies first (`npm install`, a `.venv` for Python, `mvn dependency:tree` and `mvn dependency:resolve` for Java, or `composer install` for PHP) so Stubby can also inspect the packages that depend on a vulnerable one. To also identify which function of
 each package is vulnerable, add `--llm openai` (reads `OPENAI_API_KEY`). Only
 public advisory text and fix diffs are sent, never your code. Example output:
 

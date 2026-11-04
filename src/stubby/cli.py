@@ -31,6 +31,7 @@ _EPILOG = """supported projects (the first match wins, in this order):
   npm      package-lock.json
   Python   poetry.lock, a pinned requirements.txt, or `==` pins in pyproject.toml
   Java     pom.xml (+ dependency-tree.txt from `mvn dependency:tree`) or gradle.lockfile
+  PHP      composer.lock (run `composer install` so vendor/ is there)
 
 examples:
   stubby scan .                                   report findings on the terminal
@@ -49,7 +50,7 @@ _SCAN_EPILOG = """how verdicts are decided:
                  (x-stubby-reasons) so you can see what is missing
 
 for best results install the project's dependencies first (npm install, a .venv for
-Python, downloaded jars for Java): their code is inspected, too.
+Python, downloaded jars for Java, `composer install` for PHP): their code is inspected, too.
 
 environment:
   OPENAI_API_KEY     API key read by --llm openai

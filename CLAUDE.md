@@ -19,7 +19,7 @@ stubby scan . --site-packages .venv/lib/python3.12/site-packages   # Python: ins
 stubby scan . --repository ~/.m2/repository                        # Java: where the dependency jars live
 ```
 
-No linter or formatter is configured. Python >= 3.10, hatchling build, runtime dependencies are `httpx`, tree-sitter and its JS/TS/Python/Java grammars.
+No linter or formatter is configured. Python >= 3.10, hatchling build, runtime dependencies are `httpx`, tree-sitter and its JS/TS/Python/Java/PHP grammars.
 
 ## Documentation
 
@@ -30,7 +30,7 @@ README.md is the public showcase of the open-source project: keep it short and c
 Pipeline orchestrated by `scan.scan_project`: lockfile -> dependencies -> OSV.dev lookup -> vulnerabilities -> per-finding assessment against detected imports -> OpenVEX (`vex.build_vex`).
 
 - **Language adapters** (`analyzers/base.py`, `LanguageAdapter` Protocol): one per ecosystem, providing `detect`, `load_dependencies` (name, version, deps) and `analyze` (returns a `UsageReport`: `Evidence` per package plus unattributable `dynamic` sites). `scan.ADAPTERS` is the registry; the first adapter whose `detect` matches wins. Adding a language = implement the protocol and register it there.
-- **`analyzers/python.py`** (+ `py_ast.py`, `pyenv.py`, `lockfiles/python.py`) is the Python adapter: modules map to distributions via an installed environment's `RECORD`; unattributable imports count as dynamic code. Details in `docs/architecture.md`. **`analyzers/java.py`** (+ `java_ast.py`, `jars.py`, `lockfiles/java.py`) is the Java adapter: classes map to Maven artifacts through downloaded jars and dependents are read from class-file constant pools. **`analyzers/javascript.py`** walks source files (skipping `node_modules`, `dist`, `build`, etc. and `.d.ts`); **`analyzers/js_ast.py`** does the per-file tree-sitter analysis (imports, bound members, call/ref sites, dynamic `require`/`import()`/`eval`). Files with syntax errors also get a regex fallback so imports are never lost. Scoping is ignored on purpose (over-reports, never hides usage).
+- **`analyzers/python.py`** (+ `py_ast.py`, `pyenv.py`, `lockfiles/python.py`) is the Python adapter: modules map to distributions via an installed environment's `RECORD`; unattributable imports count as dynamic code. Details in `docs/architecture.md`. **`analyzers/java.py`** (+ `java_ast.py`, `jars.py`, `lockfiles/java.py`) is the Java adapter: classes map to Maven artifacts through downloaded jars and dependents are read from class-file constant pools. **`analyzers/php.py`** (+ `php_ast.py`, `phpvendor.py`, `lockfiles/php.py`) is the PHP adapter: classes map to Composer packages through PSR-4/PSR-0 prefixes and the class map, and package code is read from `vendor/`. **`analyzers/javascript.py`** walks source files (skipping `node_modules`, `dist`, `build`, etc. and `.d.ts`); **`analyzers/js_ast.py`** does the per-file tree-sitter analysis (imports, bound members, call/ref sites, dynamic `require`/`import()`/`eval`). Files with syntax errors also get a regex fallback so imports are never lost. Scoping is ignored on purpose (over-reports, never hides usage).
 - **`models.py`**: shared dataclasses (`Dependency`, `Vulnerability`, `Evidence`, `Finding`) and the `Verdict` enum. `Dependency.purl` builds the package URL used in VEX output.
 - **`symbols.py`** (+ `fixes.py`, `llm/`): optional (`--llm openai`) extraction of vulnerable symbols; the LLM only proposes, each symbol needs a verbatim advisory/diff quote or it is dropped. Only advisory data is sent, never project code.
 
@@ -39,7 +39,7 @@ Pipeline orchestrated by `scan.scan_project`: lockfile -> dependencies -> OSV.de
 - `scan._assess` yields `INCONCLUSIVE` unless validated vulnerable symbols exist; `NOT_AFFECTED` additionally needs high confidence, a direct imported dep, no dynamic code and no opaque whole-module use (README design principle: never give false comfort; `not_affected` requires cited evidence). Tests in `tests/test_verdicts.py` cover each blocking condition, and `test_scan_never_concludes_not_affected_in_v01` covers the no-LLM path. Direct-but-never-imported deps are only noted as candidates in `notes`.
 - Transitive dependencies (`Dependency.direct = False`) are judged through the installed code of the packages that require them (`graph.py`, `scan._collect_dependents`): never `affected`, `not_affected` only if every dependent is installed, fully analysed and clear. Direct dependencies are held to the same check for their dependents.
 
-- For npm, Python and Java, `not_affected` also needs the installed code of the vulnerable package and a name graph (`reach.py`, `analyzers/js_reach.py`, `analyzers/py_reach.py`, `analyzers/java_reach.py`) showing the members used cannot reach the vulnerable symbols (`scan._reach_blockers`).
+- For npm, Python, Java and PHP, `not_affected` also needs the installed code of the vulnerable package and a name graph (`reach.py`, `analyzers/js_reach.py`, `analyzers/py_reach.py`, `analyzers/java_reach.py`, `analyzers/php_reach.py`) showing the members used cannot reach the vulnerable symbols (`scan._reach_blockers`).
 
 ## Testing
 

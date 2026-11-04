@@ -12,6 +12,7 @@ import httpx
 from .analyzers.base import LanguageAdapter
 from .analyzers.java import JavaAdapter
 from .analyzers.javascript import JavaScriptAdapter
+from .analyzers.php import PhpAdapter
 from .analyzers.python import PythonAdapter
 from .graph import DependencyGraph, GraphNode
 from .llm.base import LLMError
@@ -20,7 +21,7 @@ from .models import Dependency, Evidence, Finding, Verdict, Vulnerability
 from .osv import OSVClient
 from .symbols import SymbolExtractor, VulnerableSymbols
 
-ADAPTERS: list[LanguageAdapter] = [JavaScriptAdapter(), PythonAdapter(), JavaAdapter()]
+ADAPTERS: list[LanguageAdapter] = [JavaScriptAdapter(), PythonAdapter(), JavaAdapter(), PhpAdapter()]
 
 # Uses of a package binding whose member cannot be told apart from the vulnerable one.
 _OPAQUE_SYMBOLS = {None, "*", "default"}
@@ -63,7 +64,7 @@ def scan_project(
         raise ValueError(
             f"No supported project found in {project_dir} (supports npm projects with a "
             "package-lock.json, Python projects with a poetry.lock or pinned requirements.txt, and "
-            "Java projects with a pom.xml or gradle.lockfile)."
+            "Java projects with a pom.xml or gradle.lockfile, and PHP projects with a composer.lock)."
         )
     if hasattr(adapter, "configured"):
         adapter = adapter.configured(site_packages=site_packages, repository=repository)
