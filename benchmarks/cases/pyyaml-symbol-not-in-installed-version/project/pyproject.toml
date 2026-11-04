@@ -1,0 +1,9 @@
+[tool.poetry]
+name = "bench-app"
+version = "1.0.0"
+description = ""
+authors = []
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pyyaml = "*"

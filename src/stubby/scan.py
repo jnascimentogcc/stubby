@@ -187,6 +187,8 @@ def _entries(evidence: list[Evidence]) -> set[str] | None:
     for ev in evidence:
         if ev.kind == "dynamic":
             continue
+        if ev.kind == "import" and ev.symbol in (None, "*"):
+            continue  # `import yaml` only loads the module; what is used from it is its own evidence
         if ev.symbol in _OPAQUE_SYMBOLS:
             return None
         names.add(ev.symbol)
@@ -200,7 +202,7 @@ def _reach_blockers(
         return []  # whole-module use is already a blocker of its own
     if not graphs:
         return [("package-not-installed", "the package's installed code is not available, so what its members reach could not be checked")]
-    names = sorted({s.name for s in symbols.symbols})
+    names = sorted({s.name.rsplit(".", 1)[-1] for s in symbols.symbols})  # `ImageMath.eval` -> `eval`
     found: list[tuple[str, str]] = []
     for graph in graphs:
         if not graph.trusted():
@@ -210,6 +212,8 @@ def _reach_blockers(
         if missing:
             found.append(("symbol-not-found", f"{', '.join(missing)} not found in the installed code, so reachability could not be verified"))
         reached = graph.reachable(entries)
+        if graph.uses_dynamic_code(reached):
+            found.append(("package-unanalysable", "code the members used can run calls eval or exec, so what it reaches is unknown"))
         hit = [n for n in names if n in reached and n in graph.defined]
         if hit:
             used = ", ".join(sorted(entries)[:4]) or "load-time code"

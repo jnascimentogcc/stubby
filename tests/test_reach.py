@@ -59,8 +59,11 @@ def test_default_export_alias_reaches_the_exported_function(tmp_path):
     assert "expand" in reached
 
 
-def test_eval_and_unparsable_files_make_the_graph_untrusted(tmp_path):
-    assert not build_graph(package(tmp_path, "function f(s){ return eval(s); }")).trusted()
+def test_eval_matters_only_where_it_can_run_and_unparsable_files_are_untrusted(tmp_path):
+    graph = build_graph(package(tmp_path, "function f(s){ return eval(s); }\nfunction g(){}\n"))
+    assert graph.trusted()
+    assert graph.uses_dynamic_code(graph.reachable({"f"})) and not graph.uses_dynamic_code(graph.reachable({"g"}))
+    assert not build_graph(package(tmp_path, "eval(code);")).trusted()  # runs when the module loads
     assert not build_graph(package(tmp_path, "function (")).trusted()
     assert build_graph(package(tmp_path, "function f(){}")).trusted()
 

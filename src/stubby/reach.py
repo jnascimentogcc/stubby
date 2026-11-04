@@ -22,7 +22,8 @@ class NameGraph:
     edges: dict[str, set[str]] = field(default_factory=lambda: defaultdict(set))
     top: set[str] = field(default_factory=set)  # names mentioned by code that runs on load
     defined: set[str] = field(default_factory=set)
-    dynamic: bool = False  # eval / new Function: names can be built at run time
+    dynamic: bool = False  # eval at load time: names can be built at run time, from anywhere
+    dynamic_in: set[str] = field(default_factory=set)  # definitions that call eval / exec
     incomplete: bool = False  # some file could not be read or parsed
 
     def add_edge(self, source: str | None, target: str) -> None:
@@ -46,3 +47,7 @@ class NameGraph:
 
     def trusted(self) -> bool:
         return not (self.dynamic or self.incomplete)
+
+    def uses_dynamic_code(self, reached: set[str]) -> bool:
+        """Whether code that can run (given ``reached``) calls eval or exec."""
+        return bool(self.dynamic_in & reached)

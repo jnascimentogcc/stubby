@@ -1,0 +1,29 @@
+[[package]]
+name = "asgiref"
+version = "3.7.2"
+description = ""
+optional = false
+python-versions = ">=3.8"
+
+[[package]]
+name = "django"
+version = "4.2.0"
+description = ""
+optional = false
+python-versions = ">=3.8"
+
+[package.dependencies]
+asgiref = "*"
+sqlparse = "*"
+
+[[package]]
+name = "sqlparse"
+version = "0.4.4"
+description = ""
+optional = false
+python-versions = ">=3.8"
+
+[metadata]
+lock-version = "2.0"
+python-versions = "^3.8"
+content-hash = "x"

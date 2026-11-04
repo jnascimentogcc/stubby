@@ -107,6 +107,14 @@ def _definition(node: Node) -> tuple[str, bool] | None:
     return None
 
 
+def _note_dynamic(graph: NameGraph, ctx: tuple[tuple[str, bool], ...]) -> None:
+    """eval can call anything; it only matters when the code around it can actually run."""
+    if not ctx or all(c[1] for c in ctx):
+        graph.dynamic = True  # runs when the module loads
+    else:
+        graph.dynamic_in.add(ctx[-1][0])
+
+
 def _name_nodes(node: Node) -> list[int]:
     """Identifier nodes that name the definition ``node`` rather than use a name."""
     kind = node.type
@@ -158,9 +166,9 @@ def _add_file(graph: NameGraph, data: bytes, suffix: str) -> None:
                 graph.defined.add(_text(alias))
                 graph.add_edge(_text(alias), _text(original))
         elif node.type == "new_expression" and _text(node.child_by_field_name("constructor")) == "Function":
-            graph.dynamic = True
+            _note_dynamic(graph, ctx)
         elif node.type == "identifier" and _text(node) == "eval" and node.parent is not None and node.parent.type == "call_expression":
-            graph.dynamic = True
+            _note_dynamic(graph, ctx)
 
         if node.type in _REFERENCES and node.id not in skip:
             text = _text(node)

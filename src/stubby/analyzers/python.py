@@ -27,7 +27,9 @@ from ..lockfiles.python import (
 from ..models import Dependency, Evidence
 from ..pyenv import PythonEnvironment, find_site_packages, normalize
 from .base import UsageReport, remember_unattributed
+from ..reach import NameGraph
 from .py_ast import analyze_source
+from .py_reach import build_graph
 
 SKIP_DIRS = {
     ".git", "__pycache__", ".venv", "venv", "env", ".tox", ".nox", "node_modules", "build",
@@ -58,6 +60,7 @@ class _State:
     graph: DependencyGraph | None
     env: PythonEnvironment | None
     warnings: list[str] = field(default_factory=list)
+    graphs: dict[str, NameGraph] = field(default_factory=dict)
 
     @property
     def known(self) -> set[str]:
@@ -211,6 +214,16 @@ class PythonAdapter:
         report = self._analyze_files(project_dir, files, dist.modules, env.site_packages)
         report.incomplete = report.incomplete or len(files) < len(dist.python_files())
         return report
+
+    def package_graph(self, project_dir: Path, location: str) -> NameGraph | None:
+        """Name graph of the installed distribution ``location`` (None when it is not installed)."""
+        state = self._state(project_dir.resolve())
+        dist = state.env.dists.get(location) if state.env else None
+        if dist is None:
+            return None
+        if location not in state.graphs:
+            state.graphs[location] = build_graph(p for p in dist.python_files() if p.is_file())
+        return state.graphs[location]
 
     def is_installed(self, project_dir: Path, location: str) -> bool:
         env = self._state(project_dir).env
