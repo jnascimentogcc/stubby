@@ -56,6 +56,7 @@ also links each finding to its advisory. See
 - [x] v0.6 – Python adapter
 - [x] v0.7 – Java adapter
 - [x] v0.8 – HTML report, advisory links, reasons for inconclusive findings
+- [x] v0.9 – reachability inside the package (npm, Python, Java)
 
 ## Why "Stubby"?
 
