@@ -76,3 +76,26 @@ def test_parse_vulnerability():
     )
     assert v.display_id == "CVE-1"
     assert v.references == ["https://x"]
+
+
+class _NoVulns:
+    def vulnerabilities_for(self, deps):
+        return {}
+
+
+def _mixed_project(tmp_path):
+    (tmp_path / "package-lock.json").write_text('{"name": "web", "version": "1.0.0", "lockfileVersion": 3, "packages": {"": {}}}')
+    (tmp_path / "composer.lock").write_text('{"packages": [], "packages-dev": []}')
+    return tmp_path
+
+
+def test_ecosystem_option_picks_the_adapter_instead_of_the_first_match(tmp_path):
+    import pytest
+
+    project = _mixed_project(tmp_path)
+    assert scan_project(project, osv=_NoVulns()).ecosystem == "npm"
+    assert scan_project(project, osv=_NoVulns(), ecosystem="php").ecosystem == "Packagist"
+    with pytest.raises(ValueError, match="No java project found"):
+        scan_project(project, osv=_NoVulns(), ecosystem="java")
+    with pytest.raises(ValueError, match="Unknown ecosystem"):
+        scan_project(project, osv=_NoVulns(), ecosystem="cobol")

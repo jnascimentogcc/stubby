@@ -38,6 +38,7 @@ lodash@4.17.15  CVE-2020-8203  inconclusive  imported in 3 file(s); members used
 | `-o, --output FILE` | also write the OpenVEX JSON to `FILE` |
 | `--author NAME` | author field of the VEX document (default `stubby`) |
 | `-q, --quiet` | no progress on stderr (findings and errors are still printed) |
+| `--ecosystem NAME` | scan `npm`, `python`, `java` or `php` instead of the first one detected (for projects with several lockfiles) |
 | `--llm PROVIDER` | identify the vulnerable functions with an LLM (`openai`, reads `OPENAI_API_KEY`) |
 | `--llm-model MODEL` | model for `--llm` (default `$STUBBY_LLM_MODEL`, else `gpt-4o-mini`) |
 | `--no-fix-diff` | do not download fix-commit diffs from GitHub; use the advisory text only |

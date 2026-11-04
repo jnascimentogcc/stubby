@@ -258,7 +258,7 @@ Adding a language means implementing `LanguageAdapter` (lockfile parsing and
   whole-module use, and any non-relative dynamic `require` in a dependent blocks
   `not_affected`; both err on the cautious side.
 - Lockfile v1 has no install locations, so dependents are unknown there.
-- A scan covers one ecosystem: npm wins over Python, which wins over Java, which wins over PHP, when several are present (a Laravel project with a `package-lock.json` is scanned as npm).
+- A scan covers one ecosystem: npm wins over Python, which wins over Java, which wins over PHP, when several are present (a Laravel project with a `package-lock.json` is scanned as npm). `--ecosystem NAME` picks one explicitly and fails when its lockfile is missing; scanning several in one run is not supported.
 - Method calls on receivers whose type cannot be determined are matched by name only, so a same-named method on an unrelated object blocks `not_affected` (two benchmark cases document this cost).
 - Symbol extraction depends on advisory quality; many advisories name no symbol.
 - Dynamic features defeat static analysis and must yield `inconclusive`.

@@ -14,7 +14,7 @@ from .bench import compute_metrics, format_report, load_cases, run_cases
 from .llm.base import LLMError
 from .llm.openai import OpenAIProvider
 from .report import render_report
-from .scan import scan_project
+from .scan import ECOSYSTEMS, scan_project
 from .symbols import SymbolExtractor
 from .vex import build_vex
 
@@ -129,6 +129,11 @@ def build_parser() -> argparse.ArgumentParser:
     llm.add_argument(
         "--cache-dir", type=Path, default=Path.home() / ".cache" / "stubby" / "symbols", metavar="DIR",
         help="where extracted symbols are cached (default: %(default)s)",
+    )
+    scan.add_argument(
+        "--ecosystem", choices=sorted(ECOSYSTEMS), metavar="NAME",
+        help="scan this ecosystem (choices: " + ", ".join(sorted(ECOSYSTEMS)) + ") instead of the first one "
+        "detected; for projects with several lockfiles, such as PHP with a package-lock.json",
     )
     env = scan.add_argument_group("installed dependencies")
     env.add_argument(
@@ -258,7 +263,7 @@ def main(argv: list[str] | None = None) -> int:
             extractor = _build_extractor(args)
             result = scan_project(
                 args.path, extractor=extractor, site_packages=args.site_packages, repository=args.repository,
-                progress=_progress(args.quiet),
+                progress=_progress(args.quiet), ecosystem=args.ecosystem,
             )
         except LLMError as exc:
             print(f"error: {exc}", file=sys.stderr)

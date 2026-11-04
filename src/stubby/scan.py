@@ -23,6 +23,9 @@ from .symbols import SymbolExtractor, VulnerableSymbols
 
 ADAPTERS: list[LanguageAdapter] = [JavaScriptAdapter(), PythonAdapter(), JavaAdapter(), PhpAdapter()]
 
+# Names accepted by `--ecosystem`, and the OSV ecosystem each adapter reports.
+ECOSYSTEMS = {"npm": "npm", "python": "PyPI", "java": "Maven", "php": "Packagist"}
+
 # Uses of a package binding whose member cannot be told apart from the vulnerable one.
 _OPAQUE_SYMBOLS = {None, "*", "default"}
 
@@ -55,11 +58,23 @@ def scan_project(
     site_packages: Path | None = None,
     repository: Path | None = None,
     progress: Callable[[str, bool], None] | None = None,
+    ecosystem: str | None = None,
 ) -> ScanResult:
-    """``progress(message, transient)`` reports what is running; transient messages are per-item."""
+    """``progress(message, transient)`` reports what is running; transient messages are per-item.
+
+    ``ecosystem`` (a key of ``ECOSYSTEMS``) picks the adapter instead of the first one that matches.
+    """
     note = progress or (lambda message, transient=False: None)
     project_dir = project_dir.resolve()
-    adapter = next((a for a in ADAPTERS if a.detect(project_dir)), None)
+    if ecosystem is not None:
+        wanted = ECOSYSTEMS.get(ecosystem.lower())
+        if wanted is None:
+            raise ValueError(f"Unknown ecosystem {ecosystem!r} (choose from {', '.join(ECOSYSTEMS)}).")
+        adapter = next((a for a in ADAPTERS if a.ecosystem == wanted), None)
+        if adapter is None or not adapter.detect(project_dir):
+            raise ValueError(f"No {ecosystem} project found in {project_dir}: its lockfile is missing.")
+    else:
+        adapter = next((a for a in ADAPTERS if a.detect(project_dir)), None)
     if adapter is None:
         raise ValueError(
             f"No supported project found in {project_dir} (supports npm projects with a "

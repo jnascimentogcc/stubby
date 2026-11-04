@@ -261,7 +261,7 @@ def test_cli_prints_scan_warnings(monkeypatch, tmp_path, capsys):
     from stubby.scan import ScanResult
 
     monkeypatch.setattr(
-        cli, "scan_project", lambda path, extractor=None, site_packages=None, repository=None, progress=None: ScanResult("a", "1", "PyPI", [], ["be careful"])
+        cli, "scan_project", lambda path, extractor=None, site_packages=None, repository=None, progress=None, ecosystem=None: ScanResult("a", "1", "PyPI", [], ["be careful"])
     )
     assert cli.main(["scan", str(tmp_path)]) == 0
     assert "warning: be careful" in capsys.readouterr().err
