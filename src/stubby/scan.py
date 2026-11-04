@@ -15,6 +15,7 @@ from .analyzers.javascript import JavaScriptAdapter
 from .analyzers.python import PythonAdapter
 from .graph import DependencyGraph, GraphNode
 from .llm.base import LLMError
+from .reach import NameGraph
 from .models import Dependency, Evidence, Finding, Verdict, Vulnerability
 from .osv import OSVClient
 from .symbols import SymbolExtractor, VulnerableSymbols
@@ -106,6 +107,10 @@ def scan_project(
                 dependents = _collect_dependents(
                     graph, instances, dep, project_dir, adapter, package_reports
                 )
+            graphs = None  # None: this ecosystem cannot look inside installed packages
+            package_graph = getattr(adapter, "package_graph", None)
+            if package_graph is not None and symbols is not None and symbols.usable:
+                graphs = [g for g in (package_graph(project_dir, n.key) for n in instances) if g is not None]
             findings.append(
                 _assess(
                     dep,
@@ -120,6 +125,7 @@ def scan_project(
                     dependents_known=graph is not None,
                     chain=chain,
                     dev_only=bool(instances) and all(n.dev for n in instances),
+                    graphs=graphs,
                 )
             )
     note("Assessment complete", False)
@@ -175,6 +181,42 @@ def _hits_symbol(ev: Evidence, symbols: VulnerableSymbols, package: str) -> bool
     return any(ev.symbol == sym.name or module_leaf == sym.name for sym in symbols.symbols)
 
 
+def _entries(evidence: list[Evidence]) -> set[str] | None:
+    """Names the code uses from a package; ``None`` when it uses the whole module."""
+    names: set[str] = set()
+    for ev in evidence:
+        if ev.kind == "dynamic":
+            continue
+        if ev.symbol in _OPAQUE_SYMBOLS:
+            return None
+        names.add(ev.symbol)
+    return names
+
+
+def _reach_blockers(
+    symbols: VulnerableSymbols, entries: set[str] | None, graphs: list[NameGraph]
+) -> list[tuple[str, str]]:
+    if entries is None:
+        return []  # whole-module use is already a blocker of its own
+    if not graphs:
+        return [("package-not-installed", "the package's installed code is not available, so what its members reach could not be checked")]
+    names = sorted({s.name for s in symbols.symbols})
+    found: list[tuple[str, str]] = []
+    for graph in graphs:
+        if not graph.trusted():
+            found.append(("package-unanalysable", "the package's code uses eval or could not be fully parsed, so what its members reach is unknown"))
+            continue
+        missing = [n for n in names if n not in graph.defined]
+        if missing:
+            found.append(("symbol-not-found", f"{', '.join(missing)} not found in the installed code, so reachability could not be verified"))
+        reached = graph.reachable(entries)
+        hit = [n for n in names if n in reached and n in graph.defined]
+        if hit:
+            used = ", ".join(sorted(entries)[:4]) or "load-time code"
+            found.append(("internal-reach", f"the package's {used} may reach {', '.join(hit)} internally"))
+    return list(dict.fromkeys(found))
+
+
 @dataclass
 class _Usage:
     hits: list[Evidence]  # call or reference to a vulnerable symbol
@@ -228,6 +270,10 @@ REASONS = {
     "dependent-not-installed": "A dependent package is not installed, so its code was not inspected",
     "dependent-incomplete": "A dependent package could not be fully analysed",
     "dependent-uses-symbol": "A dependent package uses a vulnerable symbol (needs call-graph analysis)",
+    "internal-reach": "The members used may reach a vulnerable function inside the package",
+    "symbol-not-found": "The vulnerable function is not in the installed code, so reachability could not be verified",
+    "package-not-installed": "The package's installed code is not available to check what its members reach",
+    "package-unanalysable": "The package's code could not be analysed (eval or unparsable files)",
     "dependent-whole-module": "A dependent package uses the whole module",
     "dependent-dynamic": "A dependent package loads modules dynamically",
 }
@@ -246,6 +292,7 @@ def _assess(
     dev_only: bool = False,
     unattributed: dict[str, list[Evidence]] | None = None,
     incomplete: bool = False,
+    graphs: list[NameGraph] | None = None,
 ) -> Finding:
     """Assess how the project reaches a vulnerable dependency.
 
@@ -299,7 +346,7 @@ def _assess(
             names = ", ".join(sorted({s.name for s in symbols.symbols}))
             notes += f"; advisory names vulnerable symbol(s): {names} (confidence {symbols.confidence})"
             verdict, shown, notes = _decide(
-                dep, symbols, evidence, dynamic, dependents, dependents_known, notes, unattributed or {}, incomplete, reasons
+                dep, symbols, evidence, dynamic, dependents, dependents_known, notes, unattributed or {}, incomplete, reasons, graphs
             )
     if dynamic and verdict is not Verdict.AFFECTED:
         if "dynamic-code" not in reasons:
@@ -324,6 +371,7 @@ def _decide(
     unattributed: dict[str, list[Evidence]],
     incomplete: bool = False,
     reasons: list[str] | None = None,
+    graphs: list[NameGraph] | None = None,
 ) -> tuple[Verdict, list[Evidence], str]:
     project = _classify(evidence, symbols, dep.name) if dep.direct else _Usage([], [], [])
     if project.hits:
@@ -374,6 +422,16 @@ def _decide(
         for text in _same_name_calls(symbols, d.unattributed, f"dependent {label}"):
             block("same-name-call", text)
         cited += d.evidence
+
+    if graphs is not None:
+        # The members used may reach a vulnerable symbol that is never named in the code.
+        users = [("the project", evidence)] if dep.direct else []
+        users += [(f"dependent {d.node.name}@{d.node.version}", d.evidence) for d in dependents if d.installed]
+        for where, used in users:
+            if not used:
+                continue
+            for code, text in _reach_blockers(symbols, _entries(used), graphs):
+                block(code, f"{where}: {text}")
 
     if blockers:
         return Verdict.INCONCLUSIVE, evidence + cited, notes + "; " + "; ".join(blockers)

@@ -16,7 +16,9 @@ from ..graph import DependencyGraph
 from ..lockfiles.npm import parse_package_lock, parse_package_lock_graph
 from ..models import Dependency, Evidence
 from .base import UsageReport, remember_unattributed
+from ..reach import NameGraph
 from .js_ast import analyze_source, package_name_from_specifier
+from .js_reach import build_graph
 
 __all__ = ["JavaScriptAdapter", "package_name_from_specifier"]
 
@@ -38,6 +40,9 @@ _PATTERNS = (_IMPORT_FROM, _IMPORT_BARE, _CALL)
 class JavaScriptAdapter:
     ecosystem = "npm"
 
+    def __init__(self) -> None:
+        self._graphs: dict[Path, NameGraph] = {}
+
     def detect(self, project_dir: Path) -> bool:
         return (project_dir / "package-lock.json").is_file()
 
@@ -52,6 +57,16 @@ class JavaScriptAdapter:
 
     def analyze_package(self, project_dir: Path, location: str) -> UsageReport:
         return _analyze_tree(project_dir, project_dir / location, PACKAGE_SKIP_DIRS)
+
+    def package_graph(self, project_dir: Path, location: str) -> NameGraph | None:
+        """Name graph of the installed package at ``location`` (None when it is not installed)."""
+        root = project_dir / location
+        if not root.is_dir():
+            return None
+        key = root.resolve()
+        if key not in self._graphs:
+            self._graphs[key] = build_graph(root)
+        return self._graphs[key]
 
     def configured(self, **_options) -> "JavaScriptAdapter":
         return self

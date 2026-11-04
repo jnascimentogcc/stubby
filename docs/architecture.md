@@ -118,6 +118,30 @@ with a static OSV and a replayed LLM answer, then reports precision and recall
 per verdict. A false `not_affected` fails the run and the test suite. See
 `benchmarks/README.md` for the case format.
 
+## Reachability inside a package (npm)
+
+A project that calls `tar.x()` never names `Unpack`, yet `x` creates one. Matching
+the vulnerable symbol only against names the code uses would call that
+`not_affected`. For npm, `not_affected` therefore also needs the installed code of
+the vulnerable package: it is reduced to a *name graph* (`reach.py`,
+`analyzers/js_reach.py`) where `a -> b` means the definition `a` mentions `b`. The
+members the project (and each dependent) uses must not reach a vulnerable symbol
+through it. Names are global to the package and unscoped, so the graph can only
+over-report reach, never hide it. Code that runs when a module loads is always
+reached; callbacks and functions are reached only through their name.
+
+Consequences, each with its own reason code:
+- `internal-reach`: the members used may reach a vulnerable symbol internally.
+- `symbol-not-found`: the symbol is not in the installed code (for example it only
+  exists in the fixed version), so absence of use proves nothing.
+- `package-not-installed`: no installed code to check.
+- `package-unanalysable`: the package uses `eval` or has files that do not parse.
+
+Whole-module use (`import * as x`, a callable `require`) is still a blocker of its
+own. The graph is coarse: minified bundles merge names and some findings that are
+really safe stay inconclusive. Python and Java have no name graph yet, so their
+`not_affected` verdicts do not check what the used members reach internally.
+
 ## Why a finding is inconclusive
 
 Every inconclusive finding carries machine-readable reason codes (`Finding.reasons`,
@@ -153,6 +177,7 @@ src/stubby/
     base.py          LanguageAdapter protocol (one adapter per language)
     javascript.py    JS/TS/Node adapter (file walk, regex fallback)
     js_ast.py        tree-sitter analysis of one JS/TS file
+    js_reach.py      name graph of an installed npm package
     python.py        Python adapter (module -> distribution mapping)
     py_ast.py        tree-sitter analysis of one Python file
     java.py          Java adapter (class -> artifact mapping through jars)
@@ -161,6 +186,7 @@ src/stubby/
   llm/base.py        LLM provider protocol; llm/openai.py is the OpenAI provider
   symbols.py         vulnerable-symbol extraction, validation and cache
   graph.py           dependency graph (who requires whom)
+  reach.py           name graph of one installed package (reachability inside it)
   fixes.py           fix-commit diff fetching
   bench.py           benchmark runner and metrics
   scan.py            orchestration
