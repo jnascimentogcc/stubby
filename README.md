@@ -5,7 +5,7 @@ whether **your code can actually reach the vulnerable code**. Stubby answers
 that question and records the answer as an [OpenVEX](https://openvex.dev)
 document you can review, version and share.
 
-> **Early MVP (v0.9).** JS/TS projects (npm `package-lock.json`), Python projects
+> **Early MVP (v0.10).** JS/TS projects (npm `package-lock.json`), Python projects
 > (`poetry.lock`, pinned `requirements.txt` or `==` pins in `pyproject.toml`) and
 > Java projects (Maven `pom.xml` or Gradle `gradle.lockfile`) and PHP projects
 > (`composer.lock`). Verdicts are drafts for human review. Without `--llm`, findings are reported as `under_investigation`.
@@ -88,6 +88,7 @@ also links each finding to its advisory. See
 - [x] v0.7 – Java adapter
 - [x] v0.8 – HTML report, advisory links, reasons for inconclusive findings
 - [x] v0.9 – reachability inside the package (npm, Python, Java)
+- [x] v0.10 – PHP adapter (Composer) and `--ecosystem`
 
 ## Why "Stubby"?
 
