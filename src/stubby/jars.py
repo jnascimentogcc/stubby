@@ -25,6 +25,9 @@ class ClassRefs:
     name: str = ""  # internal name of the class itself
     classes: set[str] = field(default_factory=set)  # internal names of referenced classes
     methods: set[tuple[str, str]] = field(default_factory=set)  # (owner internal name, method name)
+    super_name: str = ""  # internal name of the superclass
+    defined: set[str] = field(default_factory=set)  # names of the methods the class declares
+    complete: bool = True  # False when the method table could not be read
 
 
 def read_class(data: bytes) -> ClassRefs | None:
@@ -56,11 +59,16 @@ def read_class(data: bytes) -> ClassRefs | None:
                     member_refs.append(struct.unpack_from(">HH", data, offset))
                 offset += size
             index += 2 if tag in (5, 6) else 1
-        this_class = struct.unpack_from(">H", data, offset + 2)[0]
+        this_class, super_class = struct.unpack_from(">HH", data, offset + 2)
     except (KeyError, struct.error, IndexError):
         return None
 
     refs = ClassRefs(name=utf8.get(class_ref.get(this_class, 0), ""))
+    refs.super_name = utf8.get(class_ref.get(super_class, 0), "")
+    try:
+        refs.defined = _declared_methods(data, offset + 6, utf8)
+    except (struct.error, IndexError):
+        refs.complete = False
     refs.classes = {utf8[i] for i in class_ref.values() if i in utf8}
     for cls_idx, nat_idx in member_refs:
         owner = utf8.get(class_ref.get(cls_idx, 0))
@@ -68,6 +76,23 @@ def read_class(data: bytes) -> ClassRefs | None:
         if owner and name:
             refs.methods.add((owner, name))
     return refs
+
+
+def _declared_methods(data: bytes, offset: int, utf8: dict[int, str]) -> set[str]:
+    """Names in the class's method table, which follows the interfaces and the fields."""
+    offset += 2 + 2 * struct.unpack_from(">H", data, offset)[0]  # interfaces
+    names: set[str] = set()
+    for table in ("fields", "methods"):
+        count = struct.unpack_from(">H", data, offset)[0]
+        offset += 2
+        for _ in range(count):
+            name_index, _desc, attrs = struct.unpack_from(">HHH", data, offset + 2)
+            offset += 8
+            for _ in range(attrs):
+                offset += 6 + struct.unpack_from(">I", data, offset + 2)[0]
+            if table == "methods" and name_index in utf8:
+                names.add(utf8[name_index])
+    return names
 
 
 def dotted(internal: str) -> str:

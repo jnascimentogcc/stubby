@@ -32,7 +32,9 @@ from ..jars import (
 from ..lockfiles.java import ECOSYSTEM, TREE_FILES, parse_gradle_lockfile, parse_maven_tree, parse_pom
 from ..models import Dependency, Evidence
 from .base import UsageReport, remember_unattributed
+from ..reach import NameGraph
 from .java_ast import analyze_source
+from .java_reach import build_graph
 
 SKIP_DIRS = {"target", "build", ".gradle", ".git", "out", "node_modules", ".idea", ".mvn", "bin"}
 MAX_FILE_BYTES = 2_000_000
@@ -51,6 +53,7 @@ class _State:
     _jars: dict[str, JarInfo | None] = field(default_factory=dict)
     _by_class: dict[str, set[str]] | None = None
     _by_package: dict[str, set[str]] | None = None
+    graphs: dict[str, NameGraph] = field(default_factory=dict)
 
     def jar(self, key: str) -> JarInfo | None:
         """The jar of dependency ``key`` (``group:artifact``), with its class list."""
@@ -231,6 +234,16 @@ class JavaAdapter:
             unattributed=unattributed,
             incomplete=incomplete,
         )
+
+    def package_graph(self, project_dir: Path, location: str) -> NameGraph | None:
+        """Name graph of the jar of ``location`` (None when it was not downloaded)."""
+        state = self._state(project_dir.resolve())
+        info = state.jar(location)
+        if info is None:
+            return None
+        if location not in state.graphs:
+            state.graphs[location] = build_graph(*read_jar_references(info.path))
+        return state.graphs[location]
 
     def analyze_package(self, project_dir: Path, location: str) -> UsageReport:
         state = self._state(project_dir.resolve())

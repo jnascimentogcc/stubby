@@ -39,7 +39,7 @@ Pipeline orchestrated by `scan.scan_project`: lockfile -> dependencies -> OSV.de
 - `scan._assess` yields `INCONCLUSIVE` unless validated vulnerable symbols exist; `NOT_AFFECTED` additionally needs high confidence, a direct imported dep, no dynamic code and no opaque whole-module use (README design principle: never give false comfort; `not_affected` requires cited evidence). Tests in `tests/test_verdicts.py` cover each blocking condition, and `test_scan_never_concludes_not_affected_in_v01` covers the no-LLM path. Direct-but-never-imported deps are only noted as candidates in `notes`.
 - Transitive dependencies (`Dependency.direct = False`) are judged through the installed code of the packages that require them (`graph.py`, `scan._collect_dependents`): never `affected`, `not_affected` only if every dependent is installed, fully analysed and clear. Direct dependencies are held to the same check for their dependents.
 
-- For npm and Python, `not_affected` also needs the installed code of the vulnerable package and a name graph (`reach.py`, `analyzers/js_reach.py`, `analyzers/py_reach.py`) showing the members used cannot reach the vulnerable symbols (`scan._reach_blockers`). Java does not have this check yet; keep it in mind when touching its verdicts.
+- For npm, Python and Java, `not_affected` also needs the installed code of the vulnerable package and a name graph (`reach.py`, `analyzers/js_reach.py`, `analyzers/py_reach.py`, `analyzers/java_reach.py`) showing the members used cannot reach the vulnerable symbols (`scan._reach_blockers`).
 
 ## Testing
 

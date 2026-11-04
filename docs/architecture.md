@@ -118,13 +118,13 @@ with a static OSV and a replayed LLM answer, then reports precision and recall
 per verdict. A false `not_affected` fails the run and the test suite. See
 `benchmarks/README.md` for the case format.
 
-## Reachability inside a package (npm and Python)
+## Reachability inside a package (npm, Python and Java)
 
 A project that calls `tar.x()` never names `Unpack`, yet `x` creates one. Matching
 the vulnerable symbol only against names the code uses would call that
-`not_affected`. For npm and Python, `not_affected` therefore also needs the installed code of
+`not_affected`. For npm, Python and Java, `not_affected` therefore also needs the installed code of
 the vulnerable package: it is reduced to a *name graph* (`reach.py`,
-`analyzers/js_reach.py`, `analyzers/py_reach.py`) where `a -> b` means the definition `a` mentions `b`. The
+`analyzers/js_reach.py`, `analyzers/py_reach.py`, `analyzers/java_reach.py`) where `a -> b` means the definition `a` mentions `b`. The
 members the project (and each dependent) uses must not reach a vulnerable symbol
 through it. Names are global to the package and unscoped, so the graph can only
 over-report reach, never hide it. Code that runs when a module loads is always
@@ -140,8 +140,10 @@ Consequences, each with its own reason code:
 Whole-module use (`import * as x`, a callable `require`) is still a blocker of its
 own. The graph is coarse: minified bundles merge names and some findings that are
 really safe stay inconclusive. Python's graph does not model `getattr`, metaclasses or other
-attribute-name dispatch. Java has no name graph yet, so its `not_affected`
-verdicts do not check what the used members reach internally.
+attribute-name dispatch. Java's graph is read from the jar's class files and is
+class granular: a class and each method it declares reach everything its constant
+pool mentions (superclass, classes, methods), and method names are not tied to a
+single class. Without the jar (`package-not-installed`) nothing is ruled out.
 
 ## Why a finding is inconclusive
 
@@ -180,6 +182,7 @@ src/stubby/
     js_ast.py        tree-sitter analysis of one JS/TS file
     js_reach.py      name graph of an installed npm package
     py_reach.py      name graph of an installed Python distribution
+    java_reach.py    name graph of a dependency jar (from class files)
     python.py        Python adapter (module -> distribution mapping)
     py_ast.py        tree-sitter analysis of one Python file
     java.py          Java adapter (class -> artifact mapping through jars)
