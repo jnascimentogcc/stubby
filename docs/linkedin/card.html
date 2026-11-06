@@ -1,0 +1,31 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:1200px;height:627px;background:#1f2532;color:#ece6da;font-family:Segoe UI,Helvetica,Arial,sans-serif;padding:56px 64px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
+.top{display:flex;justify-content:space-between;align-items:center}
+.brand{font-size:34px;font-weight:700;letter-spacing:.5px}
+.brand span{color:#caceb5;font-weight:400;font-size:20px;margin-left:14px}
+.tag{border:2px solid #4e615b;color:#caceb5;border-radius:999px;padding:8px 18px;font-size:18px}
+h1{font-size:54px;line-height:1.12;max-width:1000px}
+h1 em{font-style:normal;color:#caceb5}
+.flow{display:flex;align-items:stretch;gap:14px}
+.box{flex:1;background:#2f3543;border-radius:14px;padding:18px 20px;border-top:4px solid #4e615b}
+.box b{display:block;font-size:20px;margin-bottom:6px}
+.box small{font-size:16px;color:#caceb5;line-height:1.35;display:block}
+.box.llm{background:#4e615b;border-top-color:#caceb5}
+.box.llm small{color:#ece6da}
+.arrow{align-self:center;color:#caceb5;font-size:28px}
+.foot{display:flex;justify-content:space-between;font-size:18px;color:#caceb5}
+</style></head><body>
+<div class="top"><div class="brand">stubby<span>reachability analysis · OpenVEX</span></div><div class="tag">open source · MIT</div></div>
+<h1>Does your code <em>actually reach</em> the vulnerable code in your dependencies?</h1>
+<div class="flow">
+<div class="box"><b>Lockfile</b><small>npm · Python · Java · PHP</small></div><div class="arrow">›</div>
+<div class="box"><b>OSV.dev</b><small>known vulnerabilities</small></div><div class="arrow">›</div>
+<div class="box llm"><b>LLM</b><small>finds the vulnerable function in the advisory and fix diff, quote required</small></div><div class="arrow">›</div>
+<div class="box"><b>Code analysis</b><small>imports, call sites, name graph inside the package</small></div><div class="arrow">›</div>
+<div class="box"><b>OpenVEX</b><small>affected · not_affected · under_investigation</small></div>
+</div>
+<div class="foot"><span>Never false comfort: no cited evidence, no “not affected”.</span><span>pip install stubby-vex</span></div>
+</body></html>
